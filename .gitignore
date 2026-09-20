@@ -1,0 +1,55 @@
+# Self_Improving_RK
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/
+*.db
+*.sqlite3
+
+# Playwright
+playwright-report/
+test-results/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Agent runtime files (kept out of the repo: they hold your own tasks and audio)
+.self_improving_agent/
+backend/data/
+*.wav
+screenshots/
+tts_cache/
+
+# Python tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

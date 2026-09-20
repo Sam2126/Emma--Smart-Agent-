@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Local Agent — Your Computer Assistant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f1117; --panel:#181b24; --line:#262a38; --txt:#e8eaf2; --dim:#8b90a3;
+          --acc:#4f8cff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#f0b35a; }
+  * { box-sizing:border-box; margin:0; padding:0; font-family:"Segoe UI",system-ui,sans-serif; }
+  body { background:var(--bg); color:var(--txt); height:100vh; display:flex; flex-direction:column; }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+  header .logo { width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,#4f8cff,#8f5cff);
+                 display:flex; align-items:center; justify-content:center; font-size:20px; }
+  header h1 { font-size:18px; font-weight:600; }
+  header .sub { font-size:12px; color:var(--dim); }
+  main { flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:14px; }
+  .msg { max-width:78%; padding:12px 16px; border-radius:14px; white-space:pre-wrap; line-height:1.45; font-size:14px; }
+  .msg.user { align-self:flex-end; background:#2b4c8f; border-bottom-right-radius:4px; }
+  .msg.bot  { align-self:flex-start; background:var(--panel); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .msg .tag { display:block; font-size:10px; color:var(--dim); margin-bottom:4px; text-transform:uppercase; letter-spacing:.08em; }
+  .steps { align-self:flex-start; max-width:78%; font-size:12px; color:var(--dim); border-left:2px solid var(--line);
+           padding:4px 0 4px 12px; display:flex; flex-direction:column; gap:3px; }
+  .steps .step { white-space:pre-wrap; }
+  .steps .step.warn { color:var(--warn); }
+  details.why { margin-top:10px; font-size:12px; color:var(--dim); white-space:normal; }
+  details.why summary { cursor:pointer; color:var(--txt); font-weight:600; }
+  details.why pre { white-space:pre-wrap; font-family:inherit; margin-top:6px; line-height:1.5; }
+  .note { display:block; margin-top:8px; font-size:12px; color:var(--warn); }
+  .fb { display:flex; gap:8px; align-items:center; margin-top:10px; font-size:12px; color:var(--dim); white-space:normal; }
+  .fb button { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-size:14px; }
+  .fb button.chosen { border-color:var(--acc); }
+  .fb button:disabled { cursor:default; opacity:.7; }
+  .fbask { display:flex; gap:6px; margin-top:8px; white-space:normal; }
+  .fbask[hidden] { display:none; }
+  .fbask input { flex:1; background:var(--bg); border:1px solid var(--line); color:var(--txt);
+                 border-radius:8px; padding:6px 10px; font-size:12px; outline:none; }
+  .fbask input:focus { border-color:var(--acc); }
+  .fbask button { background:var(--acc); color:#fff; padding:6px 12px; font-size:12px; border-radius:8px; }
+  .fbask button.skip { background:var(--panel); color:var(--dim); border:1px solid var(--line); }
+  .confirm { display:flex; gap:8px; margin-top:10px; white-space:normal; }
+  .confirm button { padding:8px 14px; font-size:13px; }
+  .confirm .yes { background:var(--ok); color:#06210f; }
+  .confirm .no { background:var(--bg); color:var(--txt); border:1px solid var(--line); }
+  .confirm button:disabled { opacity:.5; cursor:default; }
+  .status { font-size:12px; color:var(--dim); align-self:flex-start; }
+  .status .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--acc);
+                 margin-right:6px; animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  footer { border-top:1px solid var(--line); padding:16px 24px; display:flex; gap:10px; align-items:center; }
+  #input { flex:1; background:var(--panel); border:1px solid var(--line); color:var(--txt);
+           border-radius:12px; padding:13px 16px; font-size:14px; outline:none; }
+  #input:focus { border-color:var(--acc); }
+  button { border:none; cursor:pointer; border-radius:12px; font-size:14px; font-weight:600; }
+  #mic { width:46px; height:46px; border-radius:50%; background:var(--panel); border:1px solid var(--line);
+         font-size:18px; display:flex; align-items:center; justify-content:center; }
+  #mic.rec { background:#a3294a; border-color:#ff6b6b; animation:pulse 1s infinite; }
+  #mic.busy { opacity:.5; cursor:not-allowed; }
+  #mic:disabled { cursor:not-allowed; }
+
+  /* The talking microphone. Deliberately unlike the task one: this is a
+     conversation, not a command, so it is round, warm and alive rather than
+     another grey square. */
+  #talk { position:relative; width:52px; height:52px; border-radius:50%; flex:none;
+          background:linear-gradient(145deg,#7c5cff,#3ea8ff); color:#fff; font-size:20px;
+          display:flex; align-items:center; justify-content:center;
+          box-shadow:0 4px 14px rgba(124,92,255,.35); transition:transform .15s, box-shadow .2s; }
+  #talk:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(124,92,255,.5); }
+  #talk:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+  /* Listening: rings travel outwards, the way a voice does. */
+  #talk.listening::before, #talk.listening::after {
+    content:""; position:absolute; inset:0; border-radius:50%;
+    border:2px solid rgba(124,92,255,.7); animation:ring 1.8s ease-out infinite; }
+  #talk.listening::after { animation-delay:.9s; }
+  @keyframes ring { 0% { transform:scale(1); opacity:.8; } 100% { transform:scale(1.9); opacity:0; } }
+  /* Thinking: the gradient itself moves, without the rings. */
+  #talk.thinking { background:linear-gradient(115deg,#7c5cff,#3ea8ff,#7c5cff);
+                   background-size:220% 100%; animation:flow 1.4s linear infinite; }
+  @keyframes flow { to { background-position:-220% 0; } }
+  /* Speaking: three bars, like a voice meter. */
+  #talk.speaking .bars { display:flex; }
+  #talk .bars { display:none; gap:3px; align-items:flex-end; height:18px; }
+  #talk .bars i { width:3px; background:#fff; border-radius:2px; animation:bar .9s ease-in-out infinite; }
+  #talk .bars i:nth-child(2) { animation-delay:.15s; }
+  #talk .bars i:nth-child(3) { animation-delay:.3s; }
+  @keyframes bar { 0%,100% { height:5px; } 50% { height:17px; } }
+  #talk.speaking .face, #talk.listening .face, #talk.thinking .face { opacity:.0; position:absolute; }
+  #talkWrap { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  #talkLabel { font-size:10px; color:var(--dim); letter-spacing:.3px; }
+  #send { padding:13px 22px; background:var(--acc); color:#fff; }
+  #newChat { margin-left:auto; background:var(--panel); color:var(--txt); border:1px solid var(--line);
+             padding:8px 14px; font-size:13px; border-radius:10px; }
+  #newChat:hover { border-color:var(--acc); }
+  #send:disabled { opacity:.4; cursor:default; }
+  .banner { background:#2b2438; border:1px solid #4a3a68; color:#c9b8f0; font-size:12px;
+            padding:10px 24px; text-align:center; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">🖥️</div>
+    <div>
+      <h1>Local Agent</h1>
+      <div class="sub">Voice + text tasks — full access to this computer AND the browser. Learns every operation.</div>
+    </div>
+    <button id="newChat" title="Clear this conversation and start a new chat">＋ New chat</button>
+  </header>
+  <div class="banner">🔓 <b>Full access:</b> this window can operate your computer (files, apps, system) <b>and</b> your browser — mixed tasks work in one run.</div>
+  <main id="chat">
+    <div class="msg bot">Hi! I'm your local computer assistant. Type or press the mic and tell me what to do — local or web, anything — e.g. <i>"open my most recent download"</i>, <i>"find my invoice and print it"</i>, <i>"open notepad and write today's date"</i>. After each task, tell me with 👍 or 👎 whether I got it right — I use that to get better.</div>
+  </main>
+  <div class="status" id="status" style="display:none; padding:0 24px 8px;"><span class="dot"></span><span id="statusText"></span></div>
+  <footer>
+    <button id="mic" title="Give a task by voice — this one always does the job you describe">🎙️</button>
+    <input id="input" placeholder="Type any task — local or web…" autocomplete="off">
+    <button id="send">Run</button>
+    <div id="talkWrap">
+      <button id="talk" title="Talk to Emma — ask her anything, or give her a job; she answers out loud">
+        <span class="face">🗣️</span><span class="bars"><i></i><i></i><i></i></span>
+      </button>
+      <span id="talkLabel">Talk</span>
+    </div>
+  </footer>
+
+<script>
+"use strict";
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+const mic = document.getElementById("mic");
+const statusEl = document.getElementById("status");
+const statusText = document.getElementById("statusText");
+
+let ws = null, connected = false, recorder = null, chunks = [], currentTaskId = null;
+let micState = "idle"; // "idle" -> "recording" -> "transcribing" -> "idle"
+let maxDurationTimer = null;
+const MAX_RECORDING_MS = 60_000;
+const MIN_BLOB_BYTES = 1200;
+
+// Live step stream for the running task
+let stepsBox = null, stepsTaskId = null, lastStepText = "";
+const STREAMED = ["acting", "replanning", "thinking", "waiting_confirmation"];
+
+function setMicState(next) {
+  micState = next;
+  mic.classList.toggle("rec", next === "recording");
+  mic.classList.toggle("busy", next === "transcribing");
+  mic.disabled = next === "transcribing";
+}
+
+/** Convert a Blob to base64 via FileReader instead of spreading bytes into
+ * String.fromCharCode — that approach throws "Maximum call stack size
+ * exceeded" on Chrome once the recording is more than a couple of seconds
+ * long, which silently dropped every longer voice task. */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result || "";
+      const commaIndex = dataUrl.indexOf(",");
+      resolve(commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : "");
+    };
+    reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function addMsg(text, who, tag) {
+  const d = document.createElement("div");
+  d.className = "msg " + who;
+  if (tag) { const t = document.createElement("span"); t.className = "tag"; t.textContent = tag; d.appendChild(t); }
+  d.appendChild(document.createTextNode(text));
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+  return d;
+}
+
+function setStatus(text) {
+  if (!text) { statusEl.style.display = "none"; return; }
+  statusEl.style.display = "block";
+  statusText.textContent = text;
+}
+
+// New chat: clear the conversation back to the welcome message. Tasks already
+// running keep going on the backend; the memory of past tasks is not touched.
+const welcomeHTML = chat.innerHTML;
+document.getElementById("newChat").onclick = () => {
+  chat.innerHTML = welcomeHTML;
+  stepsBox = null; stepsTaskId = null; lastStepText = "";
+  setStatus(null);
+  input.focus();
+};
+
+function stepLine(taskId, text) {
+  if (!stepsBox || stepsTaskId !== taskId) {
+    stepsBox = document.createElement("div");
+    stepsBox.className = "steps";
+    chat.appendChild(stepsBox);
+    stepsTaskId = taskId;
+    lastStepText = "";
+  }
+  if (!text || text === lastStepText) return;
+  lastStepText = text;
+  const line = document.createElement("div");
+  line.className = "step" + (text.startsWith("⚠️") ? " warn" : "");
+  line.textContent = text;
+  stepsBox.appendChild(line);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function feedbackRow(taskId) {
+  const wrap = document.createElement("div");
+  const row = document.createElement("div");
+  row.className = "fb";
+  const label = document.createElement("span");
+  label.textContent = "Did I get it right?";
+  const up = document.createElement("button");
+  up.textContent = "👍"; up.title = "Yes, it worked";
+  const down = document.createElement("button");
+  down.textContent = "👎"; down.title = "No, it did not";
+  const note = document.createElement("span");
+  note.dataset.feedbackFor = taskId;
+  row.append(label, up, down, note);
+
+  // 👎 asks what went wrong. The note is stored with the task and shown to the
+  // agent next time it plans something similar, so it can avoid exactly that.
+  const ask = document.createElement("div");
+  ask.className = "fbask";
+  ask.hidden = true;
+  const input = document.createElement("input");
+  input.placeholder = "What went wrong? (it will avoid this next time)";
+  const send = document.createElement("button");
+  send.textContent = "Send";
+  const skip = document.createElement("button");
+  skip.textContent = "Skip"; skip.className = "skip";
+  ask.append(input, send, skip);
+
+  const choose = (rating, btn, comment) => {
+    if (!connected) { note.textContent = "Not connected."; return; }
+    ws.send(JSON.stringify({ type: "task_feedback", task_id: taskId, rating: rating, comment: comment || "" }));
+    up.disabled = true; down.disabled = true; btn.classList.add("chosen");
+    ask.hidden = true;
+    note.textContent = "Saving…";
+  };
+  up.onclick = () => choose(1, up);
+  down.onclick = () => { ask.hidden = false; input.focus(); };
+  send.onclick = () => choose(-1, down, input.value.trim());
+  skip.onclick = () => choose(-1, down, "");
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") send.click(); });
+
+  wrap.append(row, ask);
+  return wrap;
+}
+
+function confirmationBox(m) {
+  const box = addMsg(m.action_description || "This action needs your confirmation.", "bot", "⚠️ confirm");
+  const url = m.details && m.details.url;
+  if (url) {
+    const note = document.createElement("span");
+    note.className = "note";
+    note.textContent = "Page: " + url;
+    box.appendChild(note);
+  }
+  const row = document.createElement("div");
+  row.className = "confirm";
+  const yes = document.createElement("button");
+  yes.className = "yes"; yes.textContent = "Yes, do it";
+  const no = document.createElement("button");
+  no.className = "no"; no.textContent = "No, stop";
+  const answer = (confirmed) => {
+    ws.send(JSON.stringify({ type: "confirmation_response", task_id: m.task_id, confirmed: confirmed }));
+    yes.disabled = true; no.disabled = true;
+    (confirmed ? yes : no).textContent += " ✓";
+  };
+  yes.onclick = () => answer(true);
+  no.onclick = () => answer(false);
+  row.append(yes, no);
+  box.appendChild(row);
+}
+
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://localhost:8765`);
+  ws.onopen = () => { connected = true; };
+  ws.onclose = () => { connected = false; setTimeout(connect, 1500); };
+  ws.onerror = () => { connected = false; };
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    switch (m.type) {
+      case "status_update":
+        currentTaskId = m.task_id || currentTaskId;
+        setStatus(`${m.current_step || m.status}`);
+        if (STREAMED.includes(m.status)) stepLine(m.task_id, m.current_step);
+        break;
+      case "confirmation_request":
+        confirmationBox(m);
+        break;
+      case "voice_transcript":
+        setMicState("idle");
+        addMsg(m.text, "user", "🎙️ you said");
+        break;
+      case "task_complete": {
+        setStatus(null);
+        const box = addMsg(m.summary || (m.success ? "Done." : "Task failed."), "bot", m.success ? "✅ completed" : "❌ failed");
+        if (m.retried) {
+          const note = document.createElement("span");
+          note.className = "note";
+          note.textContent = "My first attempt failed, so I retried with a new plan.";
+          box.appendChild(note);
+        }
+        if (m.explanation) {
+          const why = document.createElement("details");
+          why.className = "why";
+          const summary = document.createElement("summary");
+          summary.textContent = "Why I did this";
+          const pre = document.createElement("pre");
+          pre.textContent = m.explanation;
+          why.append(summary, pre);
+          box.appendChild(why);
+        }
+        const cancelled = (m.summary || "").toLowerCase().includes("cancelled by user");
+        if (m.task_id && !cancelled) box.appendChild(feedbackRow(m.task_id));
+        stepsBox = null;
+        chat.scrollTop = chat.scrollHeight;
+        // In a conversation the turn goes back to you once she has finished
+        // speaking. She speaks at roughly fifteen characters a second, and the
+        // wait keeps the microphone closed while she does, so it never records
+        // her own voice.
+        if (talking) {
+          setTalkState("speaking");
+          const spoken = (m.summary || "").length;
+          const pause = Math.min(14000, Math.max(1800, spoken * 70));
+          setTimeout(() => { if (talking) startTalkTurn(); }, pause);
+        }
+        break;
+      }
+      case "feedback_recorded": {
+        const note = chat.querySelector(`[data-feedback-for="${m.task_id}"]`);
+        const text = m.message || (m.applied || m.queued ? "Saved." : "Could not save.");
+        if (note) {
+          note.textContent = text;
+          // A rating given by voice also marks the buttons under that result.
+          const buttons = note.parentElement.querySelectorAll("button");
+          buttons.forEach((b) => { b.disabled = true; });
+          if (buttons.length >= 2) buttons[m.rating > 0 ? 0 : 1].classList.add("chosen");
+          const ask = note.parentElement.nextElementSibling;
+          if (ask) ask.hidden = true;
+        } else {
+          addMsg(text, "bot", m.rating > 0 ? "👍 feedback saved" : "👎 feedback saved");
+        }
+        break;
+      }
+      case "error":
+        setMicState("idle");
+        setStatus(null);
+        addMsg(m.message || "Error", "bot", "⚠️");
+        break;
+    }
+  };
+}
+connect();
+
+// ---- text tasks (scope=local) ----
+function submit() {
+  const text = input.value.trim();
+  if (!text || !connected) return;
+  addMsg(text, "user");
+  input.value = "";
+  ws.send(JSON.stringify({ type: "task_submit", instruction: text, scope: "local" }));
+  setStatus("Sending…");
+}
+send.onclick = submit;
+input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+
+// ---- voice tasks (scope=local) ----
+function stopRecording() {
+  if (maxDurationTimer) { clearTimeout(maxDurationTimer); maxDurationTimer = null; }
+  if (recorder && recorder.state !== "inactive") recorder.stop();
+}
+
+// ---------------------------------------------------------------------------
+// The talking microphone
+// ---------------------------------------------------------------------------
+// The left microphone sends a TASK: whatever is said gets done. This one holds
+// a CONVERSATION: a question is answered out loud, a greeting is greeted back,
+// and anything that is plainly a job is still carried out. It keeps its turn
+// open, so after Emma replies it listens again until you stop it.
+const talk = document.getElementById("talk");
+const talkLabel = document.getElementById("talkLabel");
+let talking = false;          // the conversation is open
+let talkState = "idle";       // idle | listening | thinking | speaking
+
+function setTalkState(next) {
+  talkState = next;
+  talk.classList.toggle("listening", next === "listening");
+  talk.classList.toggle("thinking", next === "thinking");
+  talk.classList.toggle("speaking", next === "speaking");
+  talkLabel.textContent =
+    next === "listening" ? "Listening" :
+    next === "thinking" ? "Thinking" :
+    next === "speaking" ? "Emma" : (talking ? "Talking" : "Talk");
+}
+
+async function startTalkTurn() {
+  if (!talking) return;
+  if (micState === "recording" || micState === "transcribing") return;
+  setTalkState("listening");
+  await beginRecording({ conversation: true });
+}
+
+talk.onclick = async () => {
+  if (!connected) { addMsg("Not connected to the agent yet.", "bot", "⚠️"); return; }
+  if (talking && talkState === "listening") { stopRecording(); return; }  // send this turn
+  if (talking) { talking = false; setTalkState("idle"); addMsg("Conversation ended.", "bot", "🗣️"); return; }
+  talking = true;
+  addMsg("Conversation started — say anything. Ask me something, or tell me what to do. Press the circle again to finish.", "bot", "🗣️");
+  await startTalkTurn();
+};
+
+// One recorder, two buttons. The left one sends what you say as a JOB; the
+// round one on the right sends it as CONVERSATION, which is answered out loud
+// unless it is plainly a job.
+async function beginRecording(options) {
+  const conversation = !!(options && options.conversation);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(stream);
+    chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.onerror = (e) => {
+      stream.getTracks().forEach((t) => t.stop());
+      setMicState("idle");
+      if (conversation) setTalkState(talking ? "idle" : "idle");
+      addMsg("Recording error: " + (e.error?.message || "unknown"), "bot", "⚠️");
+    };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      if (maxDurationTimer) { clearTimeout(maxDurationTimer); maxDurationTimer = null; }
+
+      const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      chunks = [];
+      if (blob.size < MIN_BLOB_BYTES) {
+        setMicState("idle");
+        if (conversation) setTalkState("idle");
+        addMsg("That was too short to hear — hold it a moment longer.", "bot", "⚠️");
+        return;
+      }
+
+      setMicState("transcribing");
+      if (conversation) setTalkState("thinking");
+      setStatus("Transcribing your voice…");
+      try {
+        const b64 = await blobToBase64(blob);
+        ws.send(JSON.stringify({
+          type: "voice_task", audio_base64: b64, mime: blob.type,
+          scope: "local", conversation: conversation,
+        }));
+      } catch (err) {
+        setMicState("idle");
+        if (conversation) setTalkState("idle");
+        setStatus(null);
+        addMsg("Could not process the recording: " + err.message, "bot", "⚠️");
+      }
+    };
+    recorder.start(250); // a chunk every 250ms — a short recording loses nothing
+    setMicState("recording");
+    if (!conversation) addMsg("Listening… speak your task, then tap 🎙️ again to send.", "bot", "🎙️");
+
+    // Safety cap: never let a forgotten recording run forever.
+    maxDurationTimer = setTimeout(() => {
+      if (micState === "recording") {
+        if (!conversation) addMsg("Max recording length reached — sending now.", "bot", "🎙️");
+        stopRecording();
+      }
+    }, MAX_RECORDING_MS);
+  } catch (e) {
+    setMicState("idle");
+    if (conversation) { talking = false; setTalkState("idle"); }
+    const msg = e.name === "NotAllowedError"
+      ? "Microphone permission denied. Allow mic access and try again."
+      : e.name === "NotFoundError"
+      ? "No microphone found."
+      : "Microphone unavailable: " + e.message;
+    addMsg(msg, "bot", "⚠️");
+  }
+}
+
+mic.onclick = async () => {
+  if (!connected) { addMsg("Not connected to backend.", "bot", "⚠️"); return; }
+  if (micState === "transcribing") return; // ignore clicks while a request is in flight
+  if (micState === "recording") { stopRecording(); return; }
+  await beginRecording({ conversation: false });
+};
+</script>
+</body>
+</html>

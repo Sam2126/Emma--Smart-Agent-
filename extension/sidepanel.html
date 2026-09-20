@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Panel</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="panel-container">
+    <!-- Header -->
+    <header class="panel-header">
+      <div class="header-left">
+        <div class="logo-pulse" id="connectionIndicator"></div>
+        <h1 class="header-title">Agent</h1>
+        <span class="header-badge">Phase 0</span>
+      </div>
+      <div class="header-right">
+        <span class="connection-status" id="connectionStatus">Disconnected</span>
+      </div>
+    </header>
+
+    <!-- Command Input -->
+    <section class="command-section">
+      <div class="input-group">
+        <textarea
+          id="commandInput"
+          placeholder="What would you like me to do?&#10;e.g. Search for Sony WH-1000XM5 on Amazon and add to cart"
+          rows="3"
+        ></textarea>
+        <button id="micBtn" class="btn-mic" title="Speak your task">🎙️</button>
+        <button id="submitBtn" class="btn-primary" disabled>
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">Execute</span>
+        </button>
+      </div>
+      <p class="voice-status" id="voiceStatus"></p>
+    </section>
+
+    <!-- Status Display -->
+    <section class="status-section" id="statusSection" style="display: none;">
+      <div class="status-header">
+        <h2 class="section-title">Current Task</h2>
+        <button id="cancelBtn" class="btn-cancel" title="Cancel task">✕</button>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <span class="progress-text" id="progressText">0%</span>
+      </div>
+
+      <div class="status-details">
+        <div class="status-badge" id="statusBadge">Planning</div>
+        <p class="status-step" id="currentStep">Analyzing your instruction...</p>
+        <p class="status-details-text" id="statusDetails"></p>
+      </div>
+
+      <!-- Step Timeline -->
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <!-- Confirmation Dialog -->
+    <section class="confirmation-section" id="confirmationSection" style="display: none;">
+      <div class="confirmation-card">
+        <div class="confirmation-icon">⚠️</div>
+        <h3 class="confirmation-title">Confirm Action</h3>
+        <p class="confirmation-desc" id="confirmationDesc"></p>
+        <div class="confirmation-details" id="confirmationDetails"></div>
+        <div class="confirmation-actions">
+          <button id="confirmBtn" class="btn-confirm">Confirm</button>
+          <button id="rejectBtn" class="btn-reject">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section class="results-section" id="resultsSection" style="display: none;">
+      <div class="result-card" id="resultCard">
+        <div class="result-icon" id="resultIcon">✓</div>
+        <h3 class="result-title" id="resultTitle">Task Complete</h3>
+        <p class="result-retried" id="resultRetried" style="display: none;">My first attempt failed, so I retried with a new plan.</p>
+        <p class="result-summary" id="resultSummary"></p>
+        <p class="result-duration" id="resultDuration"></p>
+        <details class="result-explain" id="resultExplainWrap" style="display: none;">
+          <summary>Why I did this</summary>
+          <pre id="resultExplain"></pre>
+        </details>
+        <div class="feedback-row" id="feedbackRow" style="display: none;">
+          <span class="feedback-label">Did I get it right?</span>
+          <button class="btn-feedback" id="feedbackUp" title="Yes, it worked">👍</button>
+          <button class="btn-feedback" id="feedbackDown" title="No, it did not">👎</button>
+        </div>
+        <div class="feedback-ask" id="feedbackAsk" style="display: none;">
+          <input id="feedbackComment" type="text" placeholder="What went wrong? (it will avoid this next time)">
+          <button class="btn-feedback-send" id="feedbackSend">Send</button>
+          <button class="btn-feedback-skip" id="feedbackSkip">Skip</button>
+        </div>
+        <p class="feedback-status" id="feedbackStatus"></p>
+      </div>
+    </section>
+
+    <!-- Task History -->
+    <section class="history-section">
+      <h2 class="section-title">Recent Tasks</h2>
+      <div class="history-list" id="historyList">
+        <p class="history-empty">No tasks yet. Give me an instruction above!</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

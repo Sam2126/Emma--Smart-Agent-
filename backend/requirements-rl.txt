@@ -1,0 +1,8 @@
+torch>=2.2
+transformers>=4.40
+peft>=0.10
+trl>=0.9
+accelerate>=0.30
+datasets>=2.18
+vllm>=0.5          # optional: rollout server
+bitsandbytes>=0.43 # optional: QLoRA

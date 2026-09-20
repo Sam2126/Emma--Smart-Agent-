@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Self-Improving Agent Flow Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #f3f5f9; --surface: #ffffff; --ink: #131a26; --dim: #5b6577;
+  --line: #d9dfe8; --line-strong: #9aa6b8; --edge: #6b768a; --dec-soft: #ffffff;
+  --ui: #6a4be0; --ui-soft: #eeeafd;
+  --engine: #2d6be4; --engine-soft: #e7effd;
+  --local: #0f8a7e; --local-soft: #e1f4f1;
+  --ext: #56657d; --ext-soft: #eceff4;
+  --mem: #a3478f; --mem-soft: #f7eaf4;
+  --ok: #17875a; --ok-soft: #e2f3ea;
+  --err: #c93d36; --err-soft: #fbe8e7;
+  --warn: #a0650f; --warn-soft: #fbf0dc;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1117; --surface: #161a23; --ink: #e8eaf2; --dim: #8f95a8;
+    --line: #262b38; --line-strong: #4a5266; --edge: #8f97aa; --dec-soft: #1b202b;
+    --ui: #a58bff; --ui-soft: #221c3b;
+    --engine: #6aa1ff; --engine-soft: #14223a;
+    --local: #43cdbb; --local-soft: #0f2e2b;
+    --ext: #9aa6bb; --ext-soft: #1d222e;
+    --mem: #e58cd1; --mem-soft: #311a2c;
+    --ok: #3ecf8e; --ok-soft: #0f2e1e;
+    --err: #ff7b72; --err-soft: #371818;
+    --warn: #f0b35a; --warn-soft: #352711;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1117; --surface: #161a23; --ink: #e8eaf2; --dim: #8f95a8;
+  --line: #262b38; --line-strong: #4a5266; --edge: #8f97aa; --dec-soft: #1b202b;
+  --ui: #a58bff; --ui-soft: #221c3b;
+  --engine: #6aa1ff; --engine-soft: #14223a;
+  --local: #43cdbb; --local-soft: #0f2e2b;
+  --ext: #9aa6bb; --ext-soft: #1d222e;
+  --mem: #e58cd1; --mem-soft: #311a2c;
+  --ok: #3ecf8e; --ok-soft: #0f2e1e;
+  --err: #ff7b72; --err-soft: #371818;
+  --warn: #f0b35a; --warn-soft: #352711;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--font-body); }
+a { color: var(--engine); }
+code { font-family: var(--font-mono); font-size: 0.88em; }
+:focus-visible { outline: 2px solid var(--engine); outline-offset: 2px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 72px; }
+
+/* --- header --------------------------------------------------------- */
+.top { display: grid; gap: 16px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+.eyebrow { margin: 0; font: 500 12.5px/1.4 var(--font-mono); color: var(--dim); }
+h1 {
+  margin: 0; max-width: 17ch; text-wrap: balance;
+  font: 700 clamp(34px, 5.4vw, 58px)/1.02 var(--font-display); letter-spacing: -0.025em;
+}
+.lede { margin: 0; max-width: 66ch; font-size: 17px; color: var(--dim); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; list-style: none;
+  font: 500 13px/1.5 var(--font-mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.facts b { color: var(--ink); font-weight: 500; }
+
+.legend { display: grid; gap: 10px; margin-top: 6px; }
+.legend h2 { margin: 0; font: 600 11px/1 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.legend ul { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.sw { display: inline-block; width: 24px; height: 15px; border-radius: 4px; border: 1.5px solid; flex: none; }
+.sw.ui { background: var(--ui-soft); border-color: var(--ui); }
+.sw.engine { background: var(--engine-soft); border-color: var(--engine); }
+.sw.local { background: var(--local-soft); border-color: var(--local); }
+.sw.ext { background: var(--ext-soft); border-color: var(--ext); }
+.sw.mem { background: var(--mem-soft); border-color: var(--mem); }
+.sw.ok { background: var(--ok-soft); border-color: var(--ok); }
+.sw.err { background: var(--err-soft); border-color: var(--err); }
+.sw.warn { background: var(--warn-soft); border-color: var(--warn); }
+.sw.pill { border-radius: 99px; background: var(--surface); border-color: var(--line-strong); }
+.sw.dec { width: 13px; height: 13px; margin-inline: 5px; transform: rotate(45deg); border-radius: 2px;
+  background: var(--dec-soft); border-color: var(--ink); }
+.sw.dash { background: transparent; border-style: dashed; border-color: var(--edge); }
+
+.hero { margin: 28px 0 0; }
+
+/* --- layout ----------------------------------------------------------- */
+.layout { display: grid; gap: 36px; margin-top: 36px; }
+.toc { font-size: 13.5px; }
+.toc h2 { margin: 18px 0 6px; font: 600 11px/1.2 var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.toc .group:first-child h2 { margin-top: 0; }
+.toc ol { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.toc a { display: grid; grid-template-columns: 2.3em 1fr; gap: 2px; padding: 4px 8px; border-radius: 6px;
+  color: var(--ink); text-decoration: none; line-height: 1.35; }
+.toc a span { font: 500 12px/1.35 var(--font-mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.toc a:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+@media (max-width: 1039px) {
+  .toc { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  .toc .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0 28px; }
+  .toc .group h2 { margin-top: 16px; }
+}
+@media (min-width: 1040px) {
+  .layout { grid-template-columns: 214px minmax(0, 1fr); gap: 44px; }
+  .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); align-self: start;
+    max-height: calc(100vh - 40px); overflow-y: auto; padding-right: 4px; }
+}
+
+main { display: grid; gap: 64px; min-width: 0; }
+.chapter { display: grid; gap: 40px; }
+.chapter-head { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.chapter-head h2 { margin: 0; font: 700 clamp(26px, 3.4vw, 34px)/1.08 var(--font-display); letter-spacing: -0.015em; }
+.chapter-head p { margin: 0; max-width: 68ch; color: var(--dim); }
+
+.fig { display: grid; gap: 12px; scroll-margin-top: 24px; }
+.fig-head { display: grid; gap: 6px; }
+.fig h3 { margin: 0; font: 600 21px/1.25 var(--font-display); text-wrap: balance; }
+.claim { margin: 0; max-width: 72ch; }
+figure.card { margin: 0; padding: 18px 18px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+figcaption { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--dim); font-size: 14px; }
+figcaption ul { display: grid; gap: 4px; margin: 0; padding-left: 18px; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+/* --- diagrams ----------------------------------------------------------- */
+svg.dg { display: block; width: 100%; height: auto; min-width: var(--minw, 700px); font-family: var(--font-body); }
+.dg .node { stroke-width: 1.5; }
+.dg .dashed { stroke-dasharray: 5 4; }
+.dg .k-ui { fill: var(--ui-soft); stroke: var(--ui); }
+.dg .k-engine { fill: var(--engine-soft); stroke: var(--engine); }
+.dg .k-local { fill: var(--local-soft); stroke: var(--local); }
+.dg .k-ext { fill: var(--ext-soft); stroke: var(--ext); }
+.dg .k-mem { fill: var(--mem-soft); stroke: var(--mem); }
+.dg .k-ok { fill: var(--ok-soft); stroke: var(--ok); }
+.dg .k-err { fill: var(--err-soft); stroke: var(--err); }
+.dg .k-warn { fill: var(--warn-soft); stroke: var(--warn); }
+.dg .k-plain { fill: var(--surface); stroke: var(--line-strong); }
+.dg .k-dec { fill: var(--dec-soft); stroke: var(--ink); }
+.dg .lane { fill-opacity: 0.45; stroke-opacity: 0.7; stroke-dasharray: 4 5; stroke-width: 1.2; }
+.dg .lane-t { font: 600 11px var(--font-body); letter-spacing: 0.09em; fill: var(--dim); }
+.dg .t-title { font-size: 13px; font-weight: 600; fill: var(--ink); }
+.dg .t-sub { font-size: 11.5px; fill: var(--dim); }
+.dg .t-dec { font-size: 12.5px; font-weight: 500; fill: var(--ink); }
+.dg .mono { font-family: var(--font-mono); font-size: 0.9em; }
+.dg .edge { fill: none; stroke: var(--edge); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.dg .edge.ok { stroke: var(--ok); }
+.dg .edge.err { stroke: var(--err); }
+.dg .edge.warn { stroke: var(--warn); }
+.dg .edge.mem { stroke: var(--mem); }
+.dg .edge.local { stroke: var(--local); }
+.dg .edge.dashed { stroke-dasharray: 5 4; }
+.dg .mk path { fill: var(--edge); }
+.dg .mk.ok path { fill: var(--ok); }
+.dg .mk.err path { fill: var(--err); }
+.dg .mk.warn path { fill: var(--warn); }
+.dg .mk.mem path { fill: var(--mem); }
+.dg .mk.local path { fill: var(--local); }
+.dg .elabel { font-size: 11.5px; fill: var(--dim); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+.dg .badge { fill: var(--ink); }
+.dg .badge-t { font: 600 11px var(--font-body); fill: var(--surface); }
+.dg .strike { stroke: var(--err); stroke-width: 1.6; }
+.dg .bar-track { fill: var(--line); }
+.dg .bar-fill { fill: var(--warn); }
+
+/* --- feedback matrix ------------------------------------------------------ */
+.matrix { display: grid; grid-template-columns: 150px 1fr 1fr; min-width: 600px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.matrix > div { padding: 12px 14px; border-top: 1px solid var(--line); }
+.matrix > div:nth-child(-n+3) { border-top: 0; }
+.matrix > div:not(:nth-child(3n+1)) { border-left: 1px solid var(--line); }
+.mx-head { font-weight: 600; background: var(--bg); }
+.mx-corner { background: var(--bg); color: var(--dim); font-size: 13px; }
+.mx-row { display: flex; align-items: flex-start; font-size: 13px; color: var(--dim); }
+.mx-cell { font-size: 14px; }
+.mx-cell.good { background: var(--ok-soft); }
+.mx-cell.bad { background: var(--err-soft); }
+.tag { display: inline-block; padding: 1px 10px; border-radius: 99px; border: 1.5px solid; font: 500 12px/1.6 var(--font-mono); }
+.tag.ok { color: var(--ok); border-color: var(--ok); background: var(--surface); }
+.tag.err { color: var(--err); border-color: var(--err); background: var(--surface); }
+.mx-notes { margin: 12px 0 0; display: grid; gap: 4px; padding-left: 18px; color: var(--dim); font-size: 14px; }
+
+/* --- guards --------------------------------------------------------------- */
+.guards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 0 28px; margin: 0; }
+.guards > div { padding: 12px 0; border-top: 1px solid var(--line); }
+.guards dt { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.guards dt::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--warn); flex: none; }
+.guards dd { margin: 4px 0 0 17px; color: var(--dim); font-size: 14px; }
+
+footer { margin-top: 72px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--dim); font-size: 13.5px; }
+footer p { margin: 0; max-width: 72ch; }
+
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Self_Improving_RK · backend/app · desktop · extension</p>
+  <h1>How the agent thinks, acts and learns</h1>
+  <p class="lede">Every flow in the Self-Improving Agent, drawn from the code: from opening the desktop icon, through the steps it takes on Windows and in Chrome, to the lesson it keeps after your 👍 or 👎. Read top to bottom for the whole story, or jump to one flow from the index.</p>
+  <ul class="facts">
+    <li><b>27</b> figures</li>
+    <li><b>39</b> tools (25 local · 14 browser)</li>
+    <li><b>621</b> tests passing</li>
+    <li>updated <b>18 Sep 2026</b></li>
+    <li>full text: <b>working.md</b></li>
+  </ul>
+  <div class="legend">
+    <h2>How to read the charts</h2>
+    <ul>
+      <li><span class="sw ui"></span>You and the screens</li>
+      <li><span class="sw engine"></span>Agent engine</li>
+      <li><span class="sw local"></span>This computer</li>
+      <li><span class="sw ext"></span>Chrome and cloud models</li>
+      <li><span class="sw mem"></span>Memory</li>
+      <li><span class="sw ok"></span>Success</li>
+      <li><span class="sw err"></span>Stop or failure</li>
+      <li><span class="sw warn"></span>Retry, wait, or asks you</li>
+      <li><span class="sw pill"></span>Start or end</li>
+      <li><span class="sw dec"></span>Decision</li>
+      <li><span class="sw dash"></span>Optional or background</li>
+    </ul>
+  </div>
+  <figure class="card hero">
+    <div class="scroll"><svg class="dg" viewBox="0 0 1000 168" role="img" aria-label="The agent&#x27;s loop: recall, plan, act, verify, learn. A failed attempt that is safe to repeat is replanned once." style="--minw:640px"><defs><marker id="hero-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="hero-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="180,54 220,54" marker-end="url(#hero-ah-base)"/>
+<polyline class="edge" points="380,54 420,54" marker-end="url(#hero-ah-base)"/>
+<polyline class="edge" points="580,54 620,54" marker-end="url(#hero-ah-base)"/>
+<polyline class="edge" points="780,54 820,54" marker-end="url(#hero-ah-base)"/>
+<polyline class="edge warn" points="700,82 700,133 660,133" marker-end="url(#hero-ah-warn)"/>
+<polyline class="edge warn" points="520,133 500,133 500,82" marker-end="url(#hero-ah-warn)"/>
+<rect class="node k-mem" x="20" y="26" width="160" height="56" rx="10"/>
+<rect class="node k-engine" x="220" y="26" width="160" height="56" rx="10"/>
+<rect class="node k-engine" x="420" y="26" width="160" height="56" rx="10"/>
+<rect class="node k-engine" x="620" y="26" width="160" height="56" rx="10"/>
+<rect class="node k-mem" x="820" y="26" width="160" height="56" rx="10"/>
+<rect class="node k-warn" x="520" y="112" width="140" height="42" rx="10"/>
+<text class="t-title" x="100" y="50.5" text-anchor="middle">Recall</text>
+<text class="t-sub" x="100" y="66.5" text-anchor="middle">memory + similar tasks</text>
+<text class="t-title" x="300" y="50.5" text-anchor="middle">Plan</text>
+<text class="t-sub" x="300" y="66.5" text-anchor="middle">a short numbered plan</text>
+<text class="t-title" x="500" y="50.5" text-anchor="middle">Act</text>
+<text class="t-sub" x="500" y="66.5" text-anchor="middle">tool-calling loop</text>
+<text class="t-title" x="700" y="50.5" text-anchor="middle">Verify</text>
+<text class="t-sub" x="700" y="66.5" text-anchor="middle">did it really work?</text>
+<text class="t-title" x="900" y="50.5" text-anchor="middle">Learn</text>
+<text class="t-sub" x="900" y="66.5" text-anchor="middle">store the lesson</text>
+<text class="t-title" x="590" y="129.5" text-anchor="middle">Replan</text>
+<text class="t-sub" x="590" y="145.5" text-anchor="middle">attempt 2</text>
+<text class="elabel" x="800" y="18" text-anchor="middle">passed</text>
+<text class="elabel" x="708" y="108" text-anchor="middle">failed · safe to retry</text>
+</svg></div>
+  </figure>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Figure index">
+  <div class="groups">
+    <div class="group"><h2>The system</h2><ol>
+      <li><a href="#system"><span>01</span>System map</a></li>
+      <li><a href="#startup"><span>02</span>Start-up</a></li>
+    </ol></div>
+    <div class="group"><h2>One task</h2><ol>
+      <li><a href="#lifecycle"><span>03</span>End to end</a></li>
+      <li><a href="#scope"><span>04</span>Scope routing</a></li>
+      <li><a href="#recall"><span>05</span>Recall</a></li>
+      <li><a href="#actor"><span>06</span>The actor loop</a></li>
+      <li><a href="#threads"><span>07</span>Where tools run</a></li>
+      <li><a href="#success"><span>08</span>Step success</a></li>
+      <li><a href="#verify"><span>09</span>Verify and retry</a></li>
+      <li><a href="#bcheck"><span>10</span>Browser checks</a></li>
+    </ol></div>
+    <div class="group"><h2>Learning</h2><ol>
+      <li><a href="#learning"><span>11</span>After a task</a></li>
+      <li><a href="#ranking"><span>12</span>Recall ranking</a></li>
+      <li><a href="#feedback"><span>13</span>👍 and 👎</a></li>
+    </ol></div>
+    <div class="group"><h2>This computer</h2><ol>
+      <li><a href="#openapp"><span>14</span>Opening an app</a></li>
+      <li><a href="#sendkeys"><span>15</span>Typing in an app</a></li>
+      <li><a href="#seeclick"><span>16</span>Seeing and clicking</a></li>
+      <li><a href="#paths"><span>17</span>Your real folders</a></li>
+      <li><a href="#delete"><span>18</span>Deleting</a></li>
+      <li><a href="#search"><span>19</span>Searching</a></li>
+    </ol></div>
+    <div class="group"><h2>Chrome</h2><ol>
+      <li><a href="#chrome"><span>20</span>Connecting</a></li>
+      <li><a href="#click"><span>21</span>Clicking</a></li>
+      <li><a href="#upload"><span>22</span>Uploading a file</a></li>
+    </ol></div>
+    <div class="group"><h2>Voice and models</h2><ol>
+      <li><a href="#wake"><span>23</span>Wake word</a></li>
+      <li><a href="#llm"><span>24</span>LLM calls</a></li>
+    </ol></div>
+    <div class="group"><h2>App and safety</h2><ol>
+      <li><a href="#desktop"><span>25</span>Desktop icon</a></li>
+      <li><a href="#safety"><span>26</span>Safety guards</a></li>
+      <li><a href="#email"><span>27</span>Email</a></li>
+    </ol></div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-system">
+  <div class="chapter-head">
+    <h2 id="ch-system">The system</h2>
+    <p>What runs where, and how the pieces reach each other.</p>
+  </div>
+
+  <section class="fig" id="system">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 01 · app/main.py · websocket/server.py · wake_listener.py</p>
+      <h3>One backend process behind every way of asking</h3>
+      <p class="claim">The desktop window, the Local Agent page and the Chrome extension talk to the backend over one WebSocket; the wake word lives inside the backend; REST calls use port 8000. The engine then drives Windows, Chrome and the model providers.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 500" role="img" aria-label="System map: five ways in, one backend process, and the three things it drives: Windows, Chrome and the model providers." style="--minw:700px"><defs><marker id="system-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="lane k-engine" x="20" y="136" width="960" height="230" rx="16"/>
+<text class="lane-t" x="36" y="158" text-anchor="start"></text>
+<polyline class="edge dashed" points="108,80 108,160" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="302,80 302,104"/>
+<polyline class="edge" points="496,80 496,104"/>
+<polyline class="edge" points="690,80 690,104"/>
+<polyline class="edge" points="302,104 690,104"/>
+<polyline class="edge" points="400,104 400,160" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="884,80 884,118 460,118 460,160" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="470,188 500,188" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="690,188 720,188" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="125,216 125,234 595,234 595,216" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="840,216 840,266"/>
+<polyline class="edge" points="150,266 860,266"/>
+<polyline class="edge" points="150,266 150,290" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="400,266 400,290" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="635,266 635,290" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="860,266 860,290" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="150,346 150,420" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="400,346 400,420" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="635,346 635,420" marker-end="url(#system-ah-base)"/>
+<polyline class="edge" points="860,346 860,420" marker-end="url(#system-ah-base)"/>
+<rect class="node k-ui" x="20" y="20" width="176" height="60" rx="10"/>
+<rect class="node k-ui" x="214" y="20" width="176" height="60" rx="10"/>
+<rect class="node k-ui" x="408" y="20" width="176" height="60" rx="10"/>
+<rect class="node k-ui" x="602" y="20" width="176" height="60" rx="10"/>
+<rect class="node k-ui" x="796" y="20" width="176" height="60" rx="10"/>
+<rect class="node k-engine" x="40" y="160" width="170" height="56" rx="10"/>
+<rect class="node k-engine" x="240" y="160" width="230" height="56" rx="10"/>
+<rect class="node k-engine" x="500" y="160" width="190" height="56" rx="10"/>
+<rect class="node k-engine" x="720" y="160" width="240" height="56" rx="10"/>
+<rect class="node k-local" x="40" y="290" width="220" height="56" rx="10"/>
+<rect class="node k-ext" x="290" y="290" width="220" height="56" rx="10"/>
+<rect class="node k-engine" x="540" y="290" width="190" height="56" rx="10"/>
+<rect class="node k-mem" x="760" y="290" width="200" height="56" rx="10"/>
+<rect class="node k-local" x="40" y="420" width="220" height="56" rx="10"/>
+<rect class="node k-ext" x="290" y="420" width="220" height="56" rx="10"/>
+<rect class="node k-ext" x="540" y="420" width="190" height="56" rx="10"/>
+<rect class="node k-mem" x="760" y="420" width="200" height="56" rx="10"/>
+<text class="t-title" x="108" y="46.5" text-anchor="middle">Wake word</text>
+<text class="t-sub" x="108" y="62.5" text-anchor="middle">“Emma … done”</text>
+<text class="t-title" x="302" y="46.5" text-anchor="middle">Desktop app window</text>
+<text class="t-sub" x="302" y="62.5" text-anchor="middle">WebView2 + tray</text>
+<text class="t-title" x="496" y="46.5" text-anchor="middle">Local Agent page</text>
+<text class="t-sub" x="496" y="62.5" text-anchor="middle">localhost:8000/local</text>
+<text class="t-title" x="690" y="46.5" text-anchor="middle">Chrome extension</text>
+<text class="t-sub" x="690" y="62.5" text-anchor="middle">side panel</text>
+<text class="t-title" x="884" y="46.5" text-anchor="middle">REST API</text>
+<text class="t-sub" x="884" y="62.5" text-anchor="middle">POST /task</text>
+<text class="t-title" x="125" y="184.5" text-anchor="middle">Wake-word thread</text>
+<text class="t-sub" x="125" y="200.5" text-anchor="middle">Vosk → Whisper</text>
+<text class="t-title" x="355" y="184.5" text-anchor="middle">Servers</text>
+<text class="t-sub" x="355" y="200.5" text-anchor="middle">FastAPI :8000 · WebSocket :8765</text>
+<text class="t-title" x="595" y="184.5" text-anchor="middle">AgentRunner</text>
+<text class="t-sub" x="595" y="200.5" text-anchor="middle">one task at a time</text>
+<text class="t-title" x="840" y="184.5" text-anchor="middle">LangGraph engine</text>
+<text class="t-sub" x="840" y="200.5" text-anchor="middle">plan · act · verify · learn</text>
+<text class="t-title" x="150" y="314.5" text-anchor="middle">Local tools · 25</text>
+<text class="t-sub" x="150" y="330.5" text-anchor="middle">files · apps · email · installs</text>
+<text class="t-title" x="400" y="314.5" text-anchor="middle">Browser tools · 14</text>
+<text class="t-sub" x="400" y="330.5" text-anchor="middle">click · download · cart</text>
+<text class="t-title" x="635" y="314.5" text-anchor="middle">Model router</text>
+<text class="t-sub" x="635" y="330.5" text-anchor="middle">Groq → Gemini fallback</text>
+<text class="t-title" x="860" y="314.5" text-anchor="middle">Memory</text>
+<text class="t-sub" x="860" y="330.5" text-anchor="middle">SQLite + ChromaDB</text>
+<text class="t-title" x="150" y="444.5" text-anchor="middle">Windows</text>
+<text class="t-sub" x="150" y="460.5" text-anchor="middle">apps · windows · files</text>
+<text class="t-title" x="400" y="444.5" text-anchor="middle">Chrome · agent window</text>
+<text class="t-sub" x="400" y="460.5" text-anchor="middle">its own profile</text>
+<text class="t-title" x="635" y="444.5" text-anchor="middle">Groq + Gemini</text>
+<text class="t-sub" x="635" y="460.5" text-anchor="middle">free API keys</text>
+<text class="t-title" x="860" y="444.5" text-anchor="middle">backend/data</text>
+<text class="t-sub" x="860" y="460.5" text-anchor="middle">agent.db · chroma · logs</text>
+<text class="lane-t" x="964" y="153" text-anchor="end">BACKEND · ONE PYTHON PROCESS</text>
+<text class="elabel" x="116" y="112" text-anchor="start">microphone</text>
+<text class="elabel" x="593" y="98" text-anchor="middle">WebSocket</text>
+<text class="elabel" x="780" y="132" text-anchor="middle">HTTP</text>
+<text class="elabel" x="300" y="250" text-anchor="middle">hands over the task</text>
+<text class="elabel" x="158" y="390" text-anchor="start">PowerShell + Win32</text>
+<text class="elabel" x="408" y="390" text-anchor="start">CDP :9222 · Playwright</text>
+<text class="elabel" x="643" y="390" text-anchor="start">HTTPS</text>
+<text class="elabel" x="868" y="390" text-anchor="start">files</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Ports:</b> 8000 REST and the Local Agent page · 8765 WebSocket · 8767 “show” signal to the desktop app · 9222 Chrome DevTools.</li>
+        <li><b>One task at a time:</b> AgentRunner makes a second task wait, because tasks share the keyboard, mouse and browser tab.</li>
+        <li>Browser-scope tasks (rule 3 in Fig. 04: they ask for Chrome, a website or a URL) get only the 14 browser tools; local-scope tasks get all 39, with the browser tools held back behind <code>use_browser</code> until the task looks like web work.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="startup">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 02 · desktop/agent_desktop.pyw · app/main.py (lifespan)</p>
+      <h3>From the desktop icon to “Listening for Emma”</h3>
+      <p class="claim">The desktop app is also the backend's supervisor: it reuses a healthy, up-to-date agent, replaces an outdated one, or starts a new one, which then brings up its database, keys, Chrome attachment, WebSocket server and wake word.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1120 680" role="img" aria-label="Start-up: the desktop app decides whether to reuse, replace or start the backend; the backend then opens its database, keys, Chrome attachment, WebSocket server and wake word." style="--minw:760px"><defs><marker id="startup-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="startup-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="lane k-engine" x="780" y="180" width="320" height="380" rx="16"/>
+<text class="lane-t" x="796" y="202" text-anchor="start">BACKEND START-UP</text>
+<polyline class="edge" points="280,64 280,90" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="395,130 500,130" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="280,170 280,200" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="280,248 280,280" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="395,320 500,320" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="280,360 280,400" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="395,440 500,440" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="610,414 610,346" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="280,480 280,510" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="940,262 940,272" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="940,318 940,328" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="940,374 940,384" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="940,430 940,440" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="940,486 940,496" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="720,320 750,320 750,239 800,239" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge" points="280,558 280,600" marker-end="url(#startup-ah-base)"/>
+<polyline class="edge ok" points="940,542 940,628 720,628" marker-end="url(#startup-ah-ok)"/>
+<rect class="node k-ui" x="180" y="20" width="200" height="44" rx="22"/>
+<polygon class="node k-dec" points="280,90 395,130 280,170 165,130"/>
+<rect class="node k-ui" x="500" y="104" width="220" height="52" rx="10"/>
+<rect class="node k-ui" x="180" y="200" width="200" height="48" rx="10"/>
+<polygon class="node k-dec" points="280,280 395,320 280,360 165,320"/>
+<rect class="node k-engine" x="500" y="294" width="220" height="52" rx="10"/>
+<polygon class="node k-dec" points="280,400 395,440 280,480 165,440"/>
+<rect class="node k-warn" x="500" y="414" width="220" height="52" rx="10"/>
+<rect class="node k-engine" x="180" y="510" width="200" height="48" rx="10"/>
+<rect class="node k-engine" x="800" y="216" width="280" height="46" rx="10"/>
+<rect class="node k-engine" x="800" y="272" width="280" height="46" rx="10"/>
+<rect class="node k-engine" x="800" y="328" width="280" height="46" rx="10"/>
+<rect class="node k-engine" x="800" y="384" width="280" height="46" rx="10"/>
+<rect class="node k-engine" x="800" y="440" width="280" height="46" rx="10"/>
+<rect class="node k-engine" x="800" y="496" width="280" height="46" rx="10"/>
+<rect class="node k-ok" x="180" y="600" width="540" height="56" rx="10"/>
+<text class="t-title" x="280" y="45.5" text-anchor="middle">You open the icon</text>
+<text class="t-dec" x="280" y="126.5" text-anchor="middle">Another copy</text>
+<text class="t-dec" x="280" y="141.5" text-anchor="middle">already running?</text>
+<text class="t-title" x="610" y="126.5" text-anchor="middle">Ask it to show</text>
+<text class="t-sub" x="610" y="142.5" text-anchor="middle">“show” → port 8767, then exit</text>
+<text class="t-title" x="280" y="220.5" text-anchor="middle">Open window + tray</text>
+<text class="t-sub" x="280" y="236.5" text-anchor="middle">loading page</text>
+<text class="t-dec" x="280" y="316.5" text-anchor="middle">Agent answers</text>
+<text class="t-dec" x="280" y="331.5" text-anchor="middle">/health?</text>
+<text class="t-title" x="610" y="316.5" text-anchor="middle">Start the backend</text>
+<text class="t-sub" x="610" y="332.5" text-anchor="middle">hidden · python -m app.main</text>
+<text class="t-dec" x="280" y="436.5" text-anchor="middle">Its code matches</text>
+<text class="t-dec" x="280" y="451.5" text-anchor="middle">the code on disk?</text>
+<text class="t-title" x="610" y="436.5" text-anchor="middle">Stop it</text>
+<text class="t-sub" x="610" y="452.5" text-anchor="middle">POST /app/shutdown</text>
+<text class="t-title" x="280" y="530.5" text-anchor="middle">Attach to it</text>
+<text class="t-sub" x="280" y="546.5" text-anchor="middle">reuse the running agent</text>
+<text class="t-title" x="940" y="235.5" text-anchor="middle">Open the SQLite database</text>
+<text class="t-sub" x="940" y="251.5" text-anchor="middle">create tables if missing</text>
+<text class="t-title" x="940" y="291.5" text-anchor="middle">Build the Groq key pool</text>
+<text class="t-sub" x="940" y="307.5" text-anchor="middle">every key in GROQ_API_KEYS</text>
+<text class="t-title" x="940" y="347.5" text-anchor="middle">Attach to Chrome on :9222</text>
+<text class="t-sub" x="940" y="363.5" text-anchor="middle">never opens a window here</text>
+<text class="t-title" x="940" y="403.5" text-anchor="middle">Start the WebSocket server</text>
+<text class="t-sub" x="940" y="419.5" text-anchor="middle">ws://localhost:8765</text>
+<text class="t-title" x="940" y="459.5" text-anchor="middle">Background checks</text>
+<text class="t-sub" x="940" y="475.5" text-anchor="middle">model list · warm ChromaDB</text>
+<text class="t-title" x="940" y="515.5" text-anchor="middle">Start the wake-word thread</text>
+<text class="t-sub" x="940" y="531.5" text-anchor="middle">calibrate mic · load Vosk</text>
+<text class="t-title" x="450" y="624.5" text-anchor="middle">Ready</text>
+<text class="t-sub" x="450" y="640.5" text-anchor="middle">window loads /local · tray: Listening for “Emma” · /health checked every 15 s</text>
+<text class="t-sub" x="500" y="174" text-anchor="start">that copy may update itself first</text>
+<text class="elabel" x="446" y="122" text-anchor="middle">yes</text>
+<text class="elabel" x="288" y="190" text-anchor="start">no</text>
+<text class="elabel" x="446" y="312" text-anchor="middle">no</text>
+<text class="elabel" x="288" y="384" text-anchor="start">yes</text>
+<text class="elabel" x="446" y="432" text-anchor="middle">no</text>
+<text class="elabel" x="618" y="384" text-anchor="start">then</text>
+<text class="elabel" x="288" y="498" text-anchor="start">yes</text>
+<text class="elabel" x="744" y="285" text-anchor="end">spawns</text>
+<text class="elabel" x="946" y="590" text-anchor="start">READY</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Up to date</b> is checked with <code>code_stamp</code> in <code>/health</code>: the version of the code the running agent loaded.</li>
+        <li>At start-up the backend <b>never opens a browser</b>; Chrome comes up the first time a task needs it (Fig. 20).</li>
+        <li>Everything the backend prints goes to <code>backend/data/logs/backend.log</code>; the app writes <code>desktop.log</code>.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-task">
+  <div class="chapter-head">
+    <h2 id="ch-task">One task, step by step</h2>
+    <p>The LangGraph engine every task runs through, whichever window it came from.</p>
+  </div>
+
+  <section class="fig" id="lifecycle">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 03 · agent/graph.py · agent/runner.py · agent/nodes/</p>
+      <h3>One task, end to end</h3>
+      <p class="claim">Recall reads memory, the planner writes steps, the actor does them, verify decides, a failure that is safe to repeat is replanned once, and learn writes memory back. Your rating is the last write.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1100 520" role="img" aria-label="One task end to end: recall reads memory, the planner and actor do the work, verify decides, a safe failure is replanned once, learn writes memory, and your rating writes it too." style="--minw:780px"><defs><marker id="lifecycle-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="lifecycle-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="lifecycle-ah-mem" class="mk mem" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="lifecycle-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="lifecycle-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="140,180 170,180" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge" points="320,180 350,180" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge" points="500,180 530,180" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge" points="680,180 710,180" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge ok" points="860,180 900,180" marker-end="url(#lifecycle-ah-ok)"/>
+<polyline class="edge mem" points="245,82 245,150" marker-end="url(#lifecycle-ah-mem)"/>
+<polyline class="edge mem" points="980,150 980,82" marker-end="url(#lifecycle-ah-mem)"/>
+<polyline class="edge err" points="785,210 785,242" marker-end="url(#lifecycle-ah-err)"/>
+<polyline class="edge warn" points="685,280 650,280" marker-end="url(#lifecycle-ah-warn)"/>
+<polyline class="edge warn" points="575,254 575,210" marker-end="url(#lifecycle-ah-warn)"/>
+<polyline class="edge" points="885,280 980,280 980,210" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge" points="1040,210 1040,370" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge" points="990,418 990,458" marker-end="url(#lifecycle-ah-base)"/>
+<polyline class="edge mem dashed" points="1080,482 1092,482 1092,56 1060,56" marker-end="url(#lifecycle-ah-mem)"/>
+<rect class="node k-mem" x="170" y="30" width="890" height="52" rx="10"/>
+<rect class="node k-ui" x="20" y="158" width="120" height="44" rx="22"/>
+<rect class="node k-engine" x="170" y="150" width="150" height="60" rx="10"/>
+<rect class="node k-engine" x="350" y="150" width="150" height="60" rx="10"/>
+<rect class="node k-engine" x="530" y="150" width="150" height="60" rx="10"/>
+<rect class="node k-engine" x="710" y="150" width="150" height="60" rx="10"/>
+<rect class="node k-mem" x="900" y="150" width="160" height="60" rx="10"/>
+<polygon class="node k-dec" points="785,242 885,280 785,318 685,280"/>
+<rect class="node k-warn" x="500" y="254" width="150" height="52" rx="10"/>
+<rect class="node k-ui" x="900" y="370" width="180" height="48" rx="24"/>
+<rect class="node k-ui" x="900" y="458" width="180" height="48" rx="10"/>
+<text class="t-title" x="615" y="52.5" text-anchor="middle">Memory</text>
+<text class="t-sub" x="615" y="68.5" text-anchor="middle">SQLite: history · skills · selectors · failures      ChromaDB: experiences · lessons</text>
+<text class="t-title" x="80" y="183.5" text-anchor="middle">Your task</text>
+<text class="t-title" x="245" y="176.5" text-anchor="middle">Recall</text>
+<text class="t-sub" x="245" y="192.5" text-anchor="middle">memory + past tasks</text>
+<text class="t-title" x="425" y="176.5" text-anchor="middle">Planner</text>
+<text class="t-sub" x="425" y="192.5" text-anchor="middle">numbered plan</text>
+<text class="t-title" x="605" y="176.5" text-anchor="middle">Act</text>
+<text class="t-sub" x="605" y="192.5" text-anchor="middle">tool-calling loop</text>
+<text class="t-title" x="785" y="176.5" text-anchor="middle">Verify</text>
+<text class="t-sub" x="785" y="192.5" text-anchor="middle">check the result</text>
+<text class="t-title" x="980" y="176.5" text-anchor="middle">Learn</text>
+<text class="t-sub" x="980" y="192.5" text-anchor="middle">store the lesson</text>
+<text class="t-dec" x="785" y="276.5" text-anchor="middle">Safe to retry?</text>
+<text class="t-dec" x="785" y="291.5" text-anchor="middle">(first attempt)</text>
+<text class="t-title" x="575" y="276.5" text-anchor="middle">Replan</text>
+<text class="t-sub" x="575" y="292.5" text-anchor="middle">new plan, attempt 2</text>
+<text class="t-title" x="990" y="390.5" text-anchor="middle">Result + “why”</text>
+<text class="t-sub" x="990" y="406.5" text-anchor="middle">shown in your window</text>
+<text class="t-title" x="990" y="485.5" text-anchor="middle">👍 / 👎 + your note</text>
+<text class="elabel" x="335" y="142" text-anchor="middle">strategy</text>
+<text class="elabel" x="515" y="142" text-anchor="middle">plan</text>
+<text class="elabel" x="695" y="142" text-anchor="middle">steps</text>
+<text class="elabel" x="880" y="142" text-anchor="middle">passed</text>
+<text class="elabel" x="253" y="120" text-anchor="start">reads</text>
+<text class="elabel" x="972" y="120" text-anchor="end">writes</text>
+<text class="elabel" x="793" y="232" text-anchor="start">failed</text>
+<text class="elabel" x="667" y="272" text-anchor="middle">yes</text>
+<text class="elabel" x="583" y="238" text-anchor="start">attempt 2</text>
+<text class="elabel" x="930" y="272" text-anchor="middle">no</text>
+<text class="elabel" x="1046" y="300" text-anchor="start">result</text>
+<text class="elabel" x="1086" y="104" text-anchor="end">your rating</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Budget:</b> 180 s per task; at most 30 tool steps per attempt for local tasks, 20 for browser tasks.</li>
+        <li><b>Example:</b> “create a folder MAYANK on the desktop with a prime-number file” → <code>create_folder</code> → <code>write_file</code> → <code>read_file</code>, verified and learned in about 10 s.</li>
+        <li>The result card shows “Why I did this”: the steps, the similar past tasks used, and the strategy followed.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="scope">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 04 · websocket/server.py · _resolve_voice_scope</p>
+      <h3>Which tools a task gets</h3>
+      <p class="claim">Six rules, checked in order. A task that names a file on this laptop keeps the local tools even when it also says “open chrome”, because only local scope can do both halves.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 540" role="img" aria-label="Scope routing: six ordered rules decide whether a task gets local and browser tools, or browser tools only." style="--minw:700px"><defs><marker id="scope-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="300,64 300,90" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="560,116 640,116" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="300,142 300,164" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="560,190 640,190" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="300,216 300,238" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="560,264 640,264" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="300,290 300,312" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="560,338 640,338" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="300,364 300,386" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="560,412 640,412" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="300,438 300,460" marker-end="url(#scope-ah-base)"/>
+<polyline class="edge" points="560,486 640,486" marker-end="url(#scope-ah-base)"/>
+<rect class="node k-ui" x="40" y="20" width="520" height="44" rx="22"/>
+<rect class="node k-plain" x="40" y="90" width="520" height="52" rx="10"/>
+<rect class="node k-local" x="640" y="96" width="160" height="40" rx="20"/>
+<rect class="node k-plain" x="40" y="164" width="520" height="52" rx="10"/>
+<rect class="node k-local" x="640" y="170" width="160" height="40" rx="20"/>
+<rect class="node k-plain" x="40" y="238" width="520" height="52" rx="10"/>
+<rect class="node k-ext" x="640" y="244" width="160" height="40" rx="20"/>
+<rect class="node k-plain" x="40" y="312" width="520" height="52" rx="10"/>
+<rect class="node k-local" x="640" y="318" width="160" height="40" rx="20"/>
+<rect class="node k-plain" x="40" y="386" width="520" height="52" rx="10"/>
+<rect class="node k-local" x="640" y="392" width="160" height="40" rx="20"/>
+<rect class="node k-plain" x="40" y="460" width="520" height="52" rx="10"/>
+<rect class="node k-local" x="640" y="466" width="160" height="40" rx="20"/>
+<text class="t-title" x="300" y="45.5" text-anchor="middle">Instruction + the window it came from</text>
+<text class="t-title" x="300" y="119.5" text-anchor="middle">Says “on this device”, “my computer”, “locally”…?</text>
+<text class="t-title" x="720" y="119.5" text-anchor="middle">local scope</text>
+<text class="t-title" x="300" y="186.5" text-anchor="middle">Names a local file or folder?</text>
+<text class="t-sub" x="300" y="202.5" text-anchor="middle">downloads · desktop · ppt · pdf · attach · upload</text>
+<text class="t-title" x="720" y="193.5" text-anchor="middle">local scope</text>
+<text class="t-title" x="300" y="260.5" text-anchor="middle">Asks for the browser?</text>
+<text class="t-sub" x="300" y="276.5" text-anchor="middle">“open chrome” · “search the web” · a URL · “.com”</text>
+<text class="t-title" x="720" y="267.5" text-anchor="middle">browser scope</text>
+<text class="t-title" x="300" y="341.5" text-anchor="middle">Came from the Local Agent page or the wake word?</text>
+<text class="t-title" x="720" y="341.5" text-anchor="middle">local scope</text>
+<text class="t-title" x="300" y="408.5" text-anchor="middle">Looks like an OS task?</text>
+<text class="t-sub" x="300" y="424.5" text-anchor="middle">notepad · task manager · wifi · volume</text>
+<text class="t-title" x="720" y="415.5" text-anchor="middle">local scope</text>
+<text class="t-title" x="300" y="489.5" text-anchor="middle">Anything else</text>
+<text class="t-title" x="720" y="489.5" text-anchor="middle">local scope</text>
+<circle class="badge" cx="40" cy="90" r="11"/>
+<text class="badge-t" x="40" y="94" text-anchor="middle">1</text>
+<circle class="badge" cx="40" cy="164" r="11"/>
+<text class="badge-t" x="40" y="168" text-anchor="middle">2</text>
+<circle class="badge" cx="40" cy="238" r="11"/>
+<text class="badge-t" x="40" y="242" text-anchor="middle">3</text>
+<circle class="badge" cx="40" cy="312" r="11"/>
+<text class="badge-t" x="40" y="316" text-anchor="middle">4</text>
+<circle class="badge" cx="40" cy="386" r="11"/>
+<text class="badge-t" x="40" y="390" text-anchor="middle">5</text>
+<circle class="badge" cx="40" cy="460" r="11"/>
+<text class="badge-t" x="40" y="464" text-anchor="middle">6</text>
+<text class="elabel" x="600" y="110" text-anchor="middle">yes</text>
+<text class="elabel" x="308" y="157" text-anchor="start">no</text>
+<text class="t-sub" x="812" y="120" text-anchor="start">25 local + 14 browser tools</text>
+<text class="elabel" x="600" y="184" text-anchor="middle">yes</text>
+<text class="elabel" x="308" y="231" text-anchor="start">no</text>
+<text class="t-sub" x="812" y="194" text-anchor="start">25 local + 14 browser tools</text>
+<text class="elabel" x="600" y="258" text-anchor="middle">yes</text>
+<text class="elabel" x="308" y="305" text-anchor="start">no</text>
+<text class="t-sub" x="812" y="268" text-anchor="start">14 browser tools only</text>
+<text class="elabel" x="600" y="332" text-anchor="middle">yes</text>
+<text class="elabel" x="308" y="379" text-anchor="start">no</text>
+<text class="t-sub" x="812" y="342" text-anchor="start">25 local + 14 browser tools</text>
+<text class="elabel" x="600" y="406" text-anchor="middle">yes</text>
+<text class="elabel" x="308" y="453" text-anchor="start">no</text>
+<text class="t-sub" x="812" y="416" text-anchor="start">25 local + 14 browser tools</text>
+<text class="t-sub" x="812" y="490" text-anchor="start">25 local + 14 browser tools</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Why rule 2 exists:</b> “open chrome, search gemini, attach the last ppt from downloads” used to stop at rule 3, and browser scope has no way to look inside Downloads.</li>
+        <li>For a local task that does not mention the web, the 14 browser tools are held back behind one <code>use_browser</code> tool, and the 5 email tools behind <code>use_email</code> unless the task mentions mail — Groq's free tier allows 8,000 tokens a minute, and every schema is resent on every call. The browser tools are held back behind one <code>use_browser</code> tool to save tokens on the free tier.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="recall">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 05 · agent/nodes/recall.py · state/reflection.py</p>
+      <h3>Recall: four look-ups at once</h3>
+      <p class="claim">Nothing here waits on anything else, so all four run together. Only when similar past tasks exist does the reflection model write a STRATEGY / AVOID note, and the planner waits for it at most 4 seconds.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 360" role="img" aria-label="Recall runs four look-ups at the same time, then asks the reflection model for a strategy only when similar tasks exist." style="--minw:700px"><defs><marker id="recall-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="170,168 210,168"/>
+<polyline class="edge" points="210,50 210,290"/>
+<polyline class="edge" points="590,50 590,290"/>
+<polyline class="edge" points="210,50 250,50" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="550,50 590,50"/>
+<polyline class="edge" points="210,130 250,130" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="550,130 590,130"/>
+<polyline class="edge" points="210,210 250,210" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="550,210 590,210"/>
+<polyline class="edge" points="210,290 250,290" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="550,290 590,290"/>
+<polyline class="edge" points="590,168 635,168" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="730,206 730,250" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="825,168 860,168" marker-end="url(#recall-ah-base)"/>
+<polyline class="edge" points="830,282 925,282 925,196" marker-end="url(#recall-ah-base)"/>
+<rect class="node k-engine" x="20" y="140" width="150" height="56" rx="10"/>
+<rect class="node k-mem" x="250" y="20" width="300" height="60" rx="10"/>
+<rect class="node k-mem" x="250" y="100" width="300" height="60" rx="10"/>
+<rect class="node k-engine" x="250" y="180" width="300" height="60" rx="10"/>
+<rect class="node k-ext" x="250" y="260" width="300" height="60" rx="10"/>
+<polygon class="node k-dec" points="730,130 825,168 730,206 635,168"/>
+<rect class="node k-engine" x="630" y="250" width="200" height="64" rx="10"/>
+<rect class="node k-engine" x="860" y="140" width="130" height="56" rx="10"/>
+<text class="t-title" x="95" y="164.5" text-anchor="middle">Recall starts</text>
+<text class="t-sub" x="95" y="180.5" text-anchor="middle">task + scope</text>
+<text class="t-title" x="400" y="46.5" text-anchor="middle">SQL memory</text>
+<text class="t-sub" x="400" y="62.5" text-anchor="middle">local tips · selectors · skills · failures</text>
+<text class="t-title" x="400" y="126.5" text-anchor="middle">Similar past tasks</text>
+<text class="t-sub" x="400" y="142.5" text-anchor="middle">ChromaDB · up to 5 experiences + lessons</text>
+<text class="t-title" x="400" y="206.5" text-anchor="middle">Tool set</text>
+<text class="t-sub" x="400" y="222.5" text-anchor="middle">39 tools, or local + <tspan class="mono">use_browser</tspan> / <tspan class="mono">use_email</tspan></text>
+<text class="t-title" x="400" y="286.5" text-anchor="middle">Starting page state</text>
+<text class="t-sub" x="400" y="302.5" text-anchor="middle">browser scope: URL · title · ARIA · text</text>
+<text class="t-dec" x="730" y="164.5" text-anchor="middle">Similar tasks</text>
+<text class="t-dec" x="730" y="179.5" text-anchor="middle">found?</text>
+<text class="t-title" x="730" y="271.5" text-anchor="middle">Strategy note</text>
+<text class="t-sub" x="730" y="287.5" text-anchor="middle">reflection model · streamed</text>
+<text class="t-sub" x="730" y="301.5" text-anchor="middle">planner waits ≤ 4 s</text>
+<text class="t-title" x="925" y="164.5" text-anchor="middle">Planner</text>
+<text class="t-sub" x="925" y="180.5" text-anchor="middle">gets it all</text>
+<text class="t-sub" x="230" y="346" text-anchor="start">all four at the same time (asyncio.gather)</text>
+<text class="elabel" x="738" y="232" text-anchor="start">yes</text>
+<text class="elabel" x="842" y="160" text-anchor="middle">no</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>SQL memory:</b> local tasks get the last 2,000 characters of tips learned on this PC; browser tasks get the site's selectors, skills and failure patterns.</li>
+        <li>The strategy includes any flow you confirmed with 👍 (to adapt, not replay) and anything you said went wrong with 👎.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="actor">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 06 · agent/nodes/actor.py · agent/toolkit.py</p>
+      <h3>The actor loop</h3>
+      <p class="claim">Each turn the model either calls one tool or writes the final report. Guards stop runaway runs, and the duplicate-send guard makes sure a message goes to a person only once.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 650" role="img" aria-label="The actor loop: each turn picks a model, asks for the next tool call or the final report, guards against limits and duplicate sends, runs the tool and records the step." style="--minw:700px"><defs><marker id="actor-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="actor-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="actor-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="actor-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="150,64 150,82" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge err" points="265,120 330,120" marker-end="url(#actor-ah-err)"/>
+<polyline class="edge" points="150,158 150,180" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge" points="150,250 150,272" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge" points="150,324 150,362" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge ok" points="250,400 330,400" marker-end="url(#actor-ah-ok)"/>
+<polyline class="edge" points="150,438 150,472" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge warn" points="255,510 330,510" marker-end="url(#actor-ah-warn)"/>
+<polyline class="edge" points="150,548 150,570" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge" points="260,596 620,596" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge" points="790,570 790,540" marker-end="url(#actor-ah-base)"/>
+<polyline class="edge warn" points="550,510 620,510" marker-end="url(#actor-ah-warn)"/>
+<polyline class="edge" points="790,488 790,42 260,42" marker-end="url(#actor-ah-base)"/>
+<rect class="node k-engine" x="40" y="20" width="220" height="44" rx="22"/>
+<polygon class="node k-dec" points="150,82 265,120 150,158 35,120"/>
+<rect class="node k-err" x="330" y="96" width="220" height="48" rx="10"/>
+<rect class="node k-engine" x="40" y="180" width="220" height="70" rx="10"/>
+<rect class="node k-engine" x="40" y="272" width="220" height="52" rx="10"/>
+<polygon class="node k-dec" points="150,362 250,400 150,438 50,400"/>
+<rect class="node k-ok" x="330" y="376" width="220" height="48" rx="10"/>
+<polygon class="node k-dec" points="150,472 255,510 150,548 45,510"/>
+<rect class="node k-warn" x="330" y="486" width="220" height="48" rx="10"/>
+<rect class="node k-local" x="40" y="570" width="220" height="52" rx="10"/>
+<rect class="node k-engine" x="620" y="570" width="340" height="52" rx="10"/>
+<rect class="node k-engine" x="620" y="488" width="340" height="52" rx="10"/>
+<text class="t-title" x="150" y="45.5" text-anchor="middle">Turn starts</text>
+<text class="t-dec" x="150" y="116.5" text-anchor="middle">Step limit reached or</text>
+<text class="t-dec" x="150" y="131.5" text-anchor="middle">under 3 s left?</text>
+<text class="t-title" x="440" y="116.5" text-anchor="middle">Stop</text>
+<text class="t-sub" x="440" y="132.5" text-anchor="middle">step limit or timeout</text>
+<text class="t-title" x="150" y="197.5" text-anchor="middle">Pick the model</text>
+<text class="t-sub" x="150" y="213.5" text-anchor="middle">strong: turn 1 · after failures</text>
+<text class="t-sub" x="150" y="227.5" text-anchor="middle">after looking · every 5th turn</text>
+<text class="t-sub" x="150" y="241.5" text-anchor="middle">fast: routine steps</text>
+<text class="t-title" x="150" y="294.5" text-anchor="middle">Call the LLM</text>
+<text class="t-sub" x="150" y="310.5" text-anchor="middle">messages + tool schemas</text>
+<text class="t-dec" x="150" y="396.5" text-anchor="middle">Tool call</text>
+<text class="t-dec" x="150" y="411.5" text-anchor="middle">or text?</text>
+<text class="t-title" x="440" y="396.5" text-anchor="middle">Final report</text>
+<text class="t-sub" x="440" y="412.5" text-anchor="middle">→ Verify</text>
+<text class="t-dec" x="150" y="506.5" text-anchor="middle">Types a message</text>
+<text class="t-dec" x="150" y="521.5" text-anchor="middle">already sent?</text>
+<text class="t-title" x="440" y="506.5" text-anchor="middle">Refuse the call</text>
+<text class="t-sub" x="440" y="522.5" text-anchor="middle">tell the model it was sent</text>
+<text class="t-title" x="150" y="592.5" text-anchor="middle">Run the tool</text>
+<text class="t-sub" x="150" y="608.5" text-anchor="middle">worker thread · ≤ 300 s</text>
+<text class="t-title" x="790" y="592.5" text-anchor="middle">Decide success</text>
+<text class="t-sub" x="790" y="608.5" text-anchor="middle">own success message · failure words (Fig. 8)</text>
+<text class="t-title" x="790" y="510.5" text-anchor="middle">Record the step</text>
+<text class="t-sub" x="790" y="526.5" text-anchor="middle">trajectory · duplicate guard · progress line</text>
+<text class="elabel" x="298" y="112" text-anchor="middle">yes</text>
+<text class="elabel" x="158" y="173" text-anchor="start">no</text>
+<text class="elabel" x="290" y="392" text-anchor="middle">text</text>
+<text class="t-sub" x="340" y="442" text-anchor="start">an empty reply gets up to 2 nudges</text>
+<text class="elabel" x="158" y="460" text-anchor="start">tool</text>
+<text class="elabel" x="292" y="502" text-anchor="middle">yes</text>
+<text class="elabel" x="158" y="563" text-anchor="start">no</text>
+<text class="elabel" x="440" y="590" text-anchor="middle">output</text>
+<text class="elabel" x="585" y="502" text-anchor="middle">reply</text>
+<text class="elabel" x="798" y="260" text-anchor="start">next turn</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Models:</b> strong <code>gpt-oss-120b</code> for important turns, fast <code>gpt-oss-20b</code> for routine ones; if the fast one fails or is rate-limited, the strong one takes the turn.</li>
+        <li>A progress line streams to your window before every call (“⌨️ Typing ‘Rakesh’ in WhatsApp”) and a result line after it.</li>
+        <li>If the model tries to resend twice, the actor ends the task and reports the message as sent once.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="threads">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 07 · tools/runtime.py · run_sync · run_in_worker · on_main_loop</p>
+      <h3>Where tool code runs</h3>
+      <p class="claim">The main event loop serves your windows and must never block. Browser tools wait on Playwright without blocking it; local tools block (PowerShell, file scans), so their code stays on the worker thread.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 420" role="img" aria-label="Where tool code runs: browser tools send their body back to the main event loop, which owns Playwright; local tools run in their worker thread and only send the vision request to the main loop." style="--minw:700px"><defs><marker id="threads-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="lane k-engine" x="20" y="20" width="960" height="120" rx="16"/>
+<text class="lane-t" x="36" y="42" text-anchor="start">MAIN EVENT LOOP</text>
+<rect class="lane k-local" x="20" y="160" width="960" height="120" rx="16"/>
+<text class="lane-t" x="36" y="182" text-anchor="start">TOOL WORKER THREAD</text>
+<rect class="lane k-ext" x="20" y="300" width="960" height="100" rx="16"/>
+<text class="lane-t" x="36" y="322" text-anchor="start">OTHER PROCESSES</text>
+<polyline class="edge dashed" points="510,30 510,390"/>
+<polyline class="edge" points="230,116 230,200" marker-end="url(#threads-ah-base)"/>
+<polyline class="edge" points="325,228 380,228 380,116" marker-end="url(#threads-ah-base)"/>
+<polyline class="edge" points="460,116 460,322" marker-end="url(#threads-ah-base)"/>
+<polyline class="edge" points="615,116 615,200" marker-end="url(#threads-ah-base)"/>
+<polyline class="edge" points="710,228 740,228" marker-end="url(#threads-ah-base)"/>
+<polyline class="edge" points="825,256 825,322" marker-end="url(#threads-ah-base)"/>
+<polyline class="edge dashed" points="880,200 880,116" marker-end="url(#threads-ah-base)"/>
+<rect class="node k-engine" x="175" y="60" width="150" height="56" rx="10"/>
+<rect class="node k-local" x="175" y="200" width="150" height="56" rx="10"/>
+<rect class="node k-engine" x="345" y="60" width="150" height="56" rx="10"/>
+<rect class="node k-ext" x="345" y="322" width="150" height="56" rx="10"/>
+<rect class="node k-engine" x="560" y="60" width="150" height="56" rx="10"/>
+<rect class="node k-local" x="560" y="200" width="150" height="56" rx="10"/>
+<rect class="node k-local" x="740" y="200" width="170" height="56" rx="10"/>
+<rect class="node k-ext" x="740" y="322" width="170" height="56" rx="10"/>
+<rect class="node k-engine dashed" x="800" y="60" width="160" height="56" rx="10"/>
+<text class="t-title" x="250" y="84.5" text-anchor="middle">Actor calls</text>
+<text class="t-sub" x="250" y="100.5" text-anchor="middle"><tspan class="mono">click_element</tspan></text>
+<text class="t-title" x="250" y="224.5" text-anchor="middle"><tspan class="mono">tool.run()</tspan></text>
+<text class="t-sub" x="250" y="240.5" text-anchor="middle">validates arguments</text>
+<text class="t-title" x="420" y="84.5" text-anchor="middle">Playwright body</text>
+<text class="t-sub" x="420" y="100.5" text-anchor="middle"><tspan class="mono">run_sync</tspan> → main loop</text>
+<text class="t-title" x="420" y="346.5" text-anchor="middle">Chrome</text>
+<text class="t-sub" x="420" y="362.5" text-anchor="middle">CDP :9222</text>
+<text class="t-title" x="635" y="84.5" text-anchor="middle">Actor calls</text>
+<text class="t-sub" x="635" y="100.5" text-anchor="middle"><tspan class="mono">open_app</tspan></text>
+<text class="t-title" x="635" y="224.5" text-anchor="middle"><tspan class="mono">tool.run()</tspan></text>
+<text class="t-sub" x="635" y="240.5" text-anchor="middle">validates arguments</text>
+<text class="t-title" x="825" y="224.5" text-anchor="middle">Body runs here</text>
+<text class="t-sub" x="825" y="240.5" text-anchor="middle"><tspan class="mono">run_in_worker</tspan></text>
+<text class="t-title" x="825" y="346.5" text-anchor="middle">PowerShell</text>
+<text class="t-sub" x="825" y="362.5" text-anchor="middle">Win32 · files · apps</text>
+<text class="t-title" x="880" y="84.5" text-anchor="middle">Vision request</text>
+<text class="t-sub" x="880" y="100.5" text-anchor="middle"><tspan class="mono">on_main_loop</tspan></text>
+<text class="t-sub" x="40" y="64" text-anchor="start">FastAPI · WebSocket</text>
+<text class="t-sub" x="40" y="80" text-anchor="start">LLM calls · Playwright</text>
+<text class="t-sub" x="40" y="204" text-anchor="start">one per tool call</text>
+<text class="t-sub" x="40" y="220" text-anchor="start">≤ 300 s</text>
+<text class="t-sub" x="40" y="344" text-anchor="start">PowerShell · Chrome</text>
+<text class="lane-t" x="175" y="44" text-anchor="start">BROWSER TOOL</text>
+<text class="lane-t" x="560" y="44" text-anchor="start">LOCAL OR DESKTOP TOOL</text>
+<text class="elabel" x="238" y="162" text-anchor="start">to_thread</text>
+<text class="elabel" x="388" y="176" text-anchor="start">body</text>
+<text class="elabel" x="468" y="228" text-anchor="start">CDP</text>
+<text class="elabel" x="623" y="162" text-anchor="start">to_thread</text>
+<text class="elabel" x="833" y="294" text-anchor="start">subprocess</text>
+<text class="elabel" x="888" y="162" text-anchor="start">see_window only</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Before the 16 Sep fix</b> local tool code ran on the main loop: a 20 s search froze health checks and progress. Measured after the fix: 98 of 98 health checks answered during that search, median 2 ms.</li>
+        <li>Every tool call is capped at 300 s, so a hung PowerShell call gives the task back.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="success">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 08 · agent/toolkit.py · output_indicates_failure</p>
+      <h3>Did this step work?</h3>
+      <p class="claim">Tools that always answer with the same success message are judged by that message alone, so your own words inside it (a WhatsApp message saying “can't”) never turn a success into a failure.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 380" role="img" aria-label="Deciding whether one tool step succeeded: fixed success messages first, descriptive tools second, a failure-word scan for everything else." style="--minw:700px"><defs><marker id="success-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="success-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="success-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="500,64 500,85" marker-end="url(#success-ah-base)"/>
+<polyline class="edge err" points="305,120 240,120" marker-end="url(#success-ah-err)"/>
+<polyline class="edge" points="500,155 500,185" marker-end="url(#success-ah-base)"/>
+<polyline class="edge ok" points="630,220 730,220" marker-end="url(#success-ah-ok)"/>
+<polyline class="edge" points="500,255 500,285" marker-end="url(#success-ah-base)"/>
+<polyline class="edge" points="370,320 270,320" marker-end="url(#success-ah-base)"/>
+<polyline class="edge" points="630,320 730,320" marker-end="url(#success-ah-base)"/>
+<rect class="node k-engine" x="380" y="20" width="240" height="44" rx="22"/>
+<polygon class="node k-dec" points="500,85 695,120 500,155 305,120"/>
+<rect class="node k-err" x="40" y="96" width="200" height="48" rx="10"/>
+<polygon class="node k-dec" points="500,185 630,220 500,255 370,220"/>
+<rect class="node k-ok" x="730" y="190" width="250" height="60" rx="10"/>
+<polygon class="node k-dec" points="500,285 630,320 500,355 370,320"/>
+<rect class="node k-engine" x="20" y="290" width="250" height="60" rx="10"/>
+<rect class="node k-engine" x="730" y="290" width="250" height="60" rx="10"/>
+<text class="t-title" x="500" y="45.5" text-anchor="middle">Tool output</text>
+<text class="t-dec" x="500" y="116.5" text-anchor="middle">Starts with “Error executing”,</text>
+<text class="t-dec" x="500" y="131.5" text-anchor="middle">“Invalid arguments”, “Unknown tool”?</text>
+<text class="t-title" x="140" y="123.5" text-anchor="middle">Failed</text>
+<text class="t-dec" x="500" y="216.5" text-anchor="middle">Tool has a fixed</text>
+<text class="t-dec" x="500" y="231.5" text-anchor="middle">success message?</text>
+<text class="t-title" x="855" y="209.5" text-anchor="middle">Success only if it starts</text>
+<text class="t-sub" x="855" y="225.5" text-anchor="middle">with that message</text>
+<text class="t-sub" x="855" y="239.5" text-anchor="middle"><tspan class="mono">send_keys</tspan> → “Sent to …”</text>
+<text class="t-dec" x="500" y="316.5" text-anchor="middle">Describes a page, window</text>
+<text class="t-dec" x="500" y="331.5" text-anchor="middle">file or folder?</text>
+<text class="t-title" x="145" y="309.5" text-anchor="middle">Failed only if it starts</text>
+<text class="t-sub" x="145" y="325.5" text-anchor="middle">with a failure phrase</text>
+<text class="t-sub" x="145" y="339.5" text-anchor="middle"><tspan class="mono">see_page</tspan> · <tspan class="mono">read_file</tspan> · <tspan class="mono">list_folder</tspan></text>
+<text class="t-title" x="855" y="309.5" text-anchor="middle">Failed if the first 240</text>
+<text class="t-sub" x="855" y="325.5" text-anchor="middle">characters hold a failure word</text>
+<text class="t-sub" x="855" y="339.5" text-anchor="middle">“not found” · “cannot” · “failed”</text>
+<text class="elabel" x="272" y="112" text-anchor="middle">yes</text>
+<text class="elabel" x="508" y="175" text-anchor="start">no</text>
+<text class="elabel" x="680" y="212" text-anchor="middle">yes</text>
+<text class="elabel" x="508" y="275" text-anchor="start">no</text>
+<text class="elabel" x="320" y="312" text-anchor="middle">yes</text>
+<text class="elabel" x="680" y="312" text-anchor="middle">no</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Fixed messages:</b> <code>send_keys</code> “Sent to …”, <code>write_file</code> “Wrote …”, <code>create_folder</code> “Folder ready: …”, <code>delete_path</code>, <code>open_app</code>, <code>click_window</code>, <code>focus_window</code>, <code>find_files</code>, <code>move_path</code>, <code>copy_path</code>, <code>open_file_or_folder</code>.</li>
+        <li>This also catches quiet refusals such as “Windows refused … NOTHING was sent”, which used to count as done.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="verify">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 09 · agent/nodes/verifier.py · agent/nodes/replanner.py</p>
+      <h3>Verify, then maybe retry</h3>
+      <p class="claim">The actor's own report is never trusted alone. A failed first attempt is replanned only if repeating it cannot duplicate an effect.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 530" role="img" aria-label="Verify, then retry: local and browser tasks are checked differently; a failure is replanned only when repeating it is harmless." style="--minw:700px"><defs><marker id="verify-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="verify-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="verify-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="verify-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="500,64 500,95" marker-end="url(#verify-ah-base)"/>
+<polyline class="edge" points="400,130 190,130 190,190" marker-end="url(#verify-ah-base)"/>
+<polyline class="edge" points="600,130 810,130 810,190" marker-end="url(#verify-ah-base)"/>
+<polyline class="edge" points="190,266 190,272 810,272 810,266"/>
+<polyline class="edge" points="500,272 500,285" marker-end="url(#verify-ah-base)"/>
+<polyline class="edge ok" points="595,320 700,320" marker-end="url(#verify-ah-ok)"/>
+<polyline class="edge err" points="500,355 500,395" marker-end="url(#verify-ah-err)"/>
+<polyline class="edge warn" points="400,430 300,430" marker-end="url(#verify-ah-warn)"/>
+<polyline class="edge err" points="600,430 700,430" marker-end="url(#verify-ah-err)"/>
+<rect class="node k-engine" x="380" y="20" width="240" height="44" rx="22"/>
+<polygon class="node k-dec" points="500,95 600,130 500,165 400,130"/>
+<rect class="node k-local" x="40" y="190" width="300" height="76" rx="10"/>
+<rect class="node k-ext" x="660" y="190" width="300" height="76" rx="10"/>
+<polygon class="node k-dec" points="500,285 595,320 500,355 405,320"/>
+<rect class="node k-ok" x="700" y="296" width="260" height="48" rx="10"/>
+<polygon class="node k-dec" points="500,395 600,430 500,465 400,430"/>
+<rect class="node k-warn" x="40" y="406" width="260" height="48" rx="10"/>
+<rect class="node k-err" x="700" y="406" width="260" height="48" rx="10"/>
+<text class="t-title" x="500" y="45.5" text-anchor="middle">Act finished</text>
+<text class="t-dec" x="500" y="134" text-anchor="middle">Which scope?</text>
+<text class="t-title" x="190" y="210.5" text-anchor="middle">Local check</text>
+<text class="t-sub" x="190" y="226.5" text-anchor="middle">the report describes no failure</text>
+<text class="t-sub" x="190" y="240.5" text-anchor="middle">and the tools match the request</text>
+<text class="t-sub" x="190" y="254.5" text-anchor="middle">(no tool ran / only <tspan class="mono">open_app</tspan> → incomplete)</text>
+<text class="t-title" x="810" y="210.5" text-anchor="middle">Browser check</text>
+<text class="t-sub" x="810" y="226.5" text-anchor="middle">page rules · text judge</text>
+<text class="t-sub" x="810" y="240.5" text-anchor="middle">vision judge if still unsure</text>
+<text class="t-sub" x="810" y="254.5" text-anchor="middle">(Fig. 10)</text>
+<text class="t-dec" x="500" y="324" text-anchor="middle">Passed?</text>
+<text class="t-title" x="830" y="323.5" text-anchor="middle">Learn · success</text>
+<text class="t-dec" x="500" y="434" text-anchor="middle">Retry allowed?</text>
+<text class="t-title" x="170" y="426.5" text-anchor="middle">Replan → Act</text>
+<text class="t-sub" x="170" y="442.5" text-anchor="middle">attempt 2</text>
+<text class="t-title" x="830" y="426.5" text-anchor="middle">Learn · failed</text>
+<text class="t-sub" x="830" y="442.5" text-anchor="middle">explains why no retry</text>
+<text class="elabel" x="300" y="122" text-anchor="middle">local</text>
+<text class="elabel" x="700" y="122" text-anchor="middle">browser</text>
+<text class="elabel" x="648" y="312" text-anchor="middle">yes</text>
+<text class="elabel" x="508" y="378" text-anchor="start">no</text>
+<text class="elabel" x="350" y="422" text-anchor="middle">yes</text>
+<text class="elabel" x="650" y="422" text-anchor="middle">no</text>
+<text class="t-sub" x="500" y="490" text-anchor="middle">allowed only on attempt 1 · auto-retry on · not a timeout ·</text>
+<text class="t-sub" x="500" y="506" text-anchor="middle">no typing, clicking, sending, writing or command succeeded</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Local incomplete examples:</b> “create a folder…” where no tool ran; “open WhatsApp and message Rakesh” where only <code>open_app</code> ran.</li>
+        <li><b>Safe to repeat:</b> finding, listing, reading, looking, navigating, creating a folder. Typing, clicking, sending, writing and commands are not.</li>
+        <li>The replan asks the reflection model why it failed and gives the planner “PREVIOUS ATTEMPT FAILED — use a different approach”.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="bcheck">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 10 · verifier/engine.py · verifier/rules/generic.py · verifier/llm_judge.py</p>
+      <h3>How a browser task is checked</h3>
+      <p class="claim">Concrete page rules first, a text judge on the page snapshot always, and a screenshot judge only when it could still change the answer.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 320" role="img" aria-label="Browser verification: rules first, a text judge always, and a screenshot judge only when it could change the outcome." style="--minw:700px"><defs><marker id="bcheck-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="240,88 280,88" marker-end="url(#bcheck-ah-base)"/>
+<polyline class="edge" points="500,88 515,88" marker-end="url(#bcheck-ah-base)"/>
+<polyline class="edge" points="765,88 790,88" marker-end="url(#bcheck-ah-base)"/>
+<polyline class="edge" points="640,133 640,220" marker-end="url(#bcheck-ah-base)"/>
+<polyline class="edge" points="885,132 885,258 775,258" marker-end="url(#bcheck-ah-base)"/>
+<rect class="node k-engine" x="20" y="40" width="220" height="96" rx="10"/>
+<rect class="node k-engine" x="280" y="40" width="220" height="96" rx="10"/>
+<polygon class="node k-dec" points="640,43 765,88 640,133 515,88"/>
+<rect class="node k-ext" x="790" y="44" width="190" height="88" rx="10"/>
+<rect class="node k-ok" x="505" y="220" width="270" height="76" rx="10"/>
+<text class="t-title" x="130" y="63.5" text-anchor="middle">Rules</text>
+<text class="t-sub" x="130" y="79.5" text-anchor="middle">site rules, or generic:</text>
+<text class="t-sub" x="130" y="93.5" text-anchor="middle">search words in URL / text</text>
+<text class="t-sub" x="130" y="107.5" text-anchor="middle">reached the named site</text>
+<text class="t-sub" x="130" y="121.5" text-anchor="middle">no login wall · cart +1</text>
+<text class="t-title" x="390" y="70.5" text-anchor="middle">Text judge</text>
+<text class="t-sub" x="390" y="86.5" text-anchor="middle">page snapshot + steps</text>
+<text class="t-sub" x="390" y="100.5" text-anchor="middle">VERDICT · CONFIDENCE</text>
+<text class="t-sub" x="390" y="114.5" text-anchor="middle">judge model</text>
+<text class="t-dec" x="640" y="84.5" text-anchor="middle">Rules passed and the</text>
+<text class="t-dec" x="640" y="99.5" text-anchor="middle">text judge not sure?</text>
+<text class="t-title" x="885" y="70.5" text-anchor="middle">Vision judge</text>
+<text class="t-sub" x="885" y="86.5" text-anchor="middle">final-page screenshot</text>
+<text class="t-sub" x="885" y="100.5" text-anchor="middle">Gemini → Groq · ≤ 40 s</text>
+<text class="t-sub" x="885" y="114.5" text-anchor="middle">decides if ≥ 60 % sure</text>
+<text class="t-title" x="640" y="240.5" text-anchor="middle">Combine</text>
+<text class="t-sub" x="640" y="256.5" text-anchor="middle">rules must pass AND the deciding</text>
+<text class="t-sub" x="640" y="270.5" text-anchor="middle">judge must pass</text>
+<text class="t-sub" x="640" y="284.5" text-anchor="middle">no judge at all → rules alone</text>
+<text class="elabel" x="777" y="80" text-anchor="middle">yes</text>
+<text class="elabel" x="648" y="182" text-anchor="start">no</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Generic rules</b> come from the instruction: at least half of the search words on the result page, the named site reached, no login wall or CAPTCHA (unless logging in was the task), the cart count up.</li>
+        <li><b>“Not sure”</b> means anything other than a text-judge pass at 85 % confidence or more, so a confident <i>fail</i> still gets the screenshot judge, which can overrule it.</li>
+        <li>Payments are never decided by a judge: they always need you (Fig. 26).</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-learn">
+  <div class="chapter-head">
+    <h2 id="ch-learn">How it learns</h2>
+    <p>SQLite for facts and counts, ChromaDB for meaning, an LLM for the lesson, and you for the final word.</p>
+  </div>
+
+  <section class="fig" id="learning">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 11 · agent/nodes/learner.py · state/brain.py · state/semantic_memory.py</p>
+      <h3>What happens after a task</h3>
+      <p class="claim">Quick local writes finish before you see the result. The LLM lesson and the ChromaDB experience are written in the background, so learning never slows the answer.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 580" role="img" aria-label="Learning after a task: quick SQL writes happen before you see the result; the LLM lesson and the ChromaDB experience are written in the background. A run with no tool calls is kept aside and stored only if you rate it." style="--minw:700px"><defs><marker id="learning-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="learning-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="lane k-mem" x="20" y="190" width="470" height="300" rx="16"/>
+<text class="lane-t" x="474" y="212" text-anchor="end">BEFORE YOU SEE THE RESULT</text>
+<rect class="lane k-mem" x="510" y="190" width="470" height="300" rx="16"/>
+<text class="lane-t" x="964" y="212" text-anchor="end">IN THE BACKGROUND</text>
+<polyline class="edge" points="140,64 140,85" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge warn" points="235,120 300,120" marker-end="url(#learning-ah-warn)"/>
+<polyline class="edge" points="140,155 140,220" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="255,264 255,274" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="255,318 255,328" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="255,372 255,382" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="255,426 255,436" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="745,264 745,274" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="745,318 745,328" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="745,372 745,382" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="745,426 745,436" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge dashed" points="470,458 500,458 500,242 530,242" marker-end="url(#learning-ah-base)"/>
+<polyline class="edge" points="255,490 255,520" marker-end="url(#learning-ah-base)"/>
+<rect class="node k-engine" x="40" y="20" width="200" height="44" rx="22"/>
+<polygon class="node k-dec" points="140,85 235,120 140,155 45,120"/>
+<rect class="node k-warn" x="300" y="92" width="300" height="56" rx="10"/>
+<rect class="node k-mem" x="40" y="220" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="40" y="274" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="40" y="328" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="40" y="382" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="40" y="436" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="530" y="220" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="530" y="274" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="530" y="328" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="530" y="382" width="430" height="44" rx="10"/>
+<rect class="node k-mem" x="530" y="436" width="430" height="44" rx="10"/>
+<rect class="node k-ui" x="40" y="520" width="430" height="44" rx="22"/>
+<text class="t-title" x="140" y="45.5" text-anchor="middle">Verify finished</text>
+<text class="t-dec" x="140" y="124" text-anchor="middle">Did any tool run?</text>
+<text class="t-title" x="450" y="116.5" text-anchor="middle">Kept aside, not stored</text>
+<text class="t-sub" x="450" y="132.5" text-anchor="middle">stored only if you rate it</text>
+<text class="t-title" x="255" y="238.5" text-anchor="middle">Close the task record</text>
+<text class="t-sub" x="255" y="254.5" text-anchor="middle">status · summary · duration</text>
+<text class="t-title" x="255" y="292.5" text-anchor="middle">Local tip</text>
+<text class="t-sub" x="255" y="308.5" text-anchor="middle">“TASK … → DONE · REPORT …”</text>
+<text class="t-title" x="255" y="346.5" text-anchor="middle">Count the run once</text>
+<text class="t-sub" x="255" y="362.5" text-anchor="middle">domain success / failure</text>
+<text class="t-title" x="255" y="400.5" text-anchor="middle">Skill up or down</text>
+<text class="t-sub" x="255" y="416.5" text-anchor="middle">same skill type either way</text>
+<text class="t-title" x="255" y="454.5" text-anchor="middle">Failure pattern + strikes</text>
+<text class="t-sub" x="255" y="470.5" text-anchor="middle">page selectors only</text>
+<text class="t-title" x="745" y="238.5" text-anchor="middle">Recall similar tasks</text>
+<text class="t-sub" x="745" y="254.5" text-anchor="middle">to compare against</text>
+<text class="t-title" x="745" y="292.5" text-anchor="middle">LLM reflection</text>
+<text class="t-sub" x="745" y="308.5" text-anchor="middle">worked · failed · why · next time</text>
+<text class="t-title" x="745" y="346.5" text-anchor="middle">Embed task + lesson</text>
+<text class="t-sub" x="745" y="362.5" text-anchor="middle">one MiniLM call, offline</text>
+<text class="t-title" x="745" y="400.5" text-anchor="middle">Upsert to ChromaDB</text>
+<text class="t-sub" x="745" y="416.5" text-anchor="middle">experiences + lessons</text>
+<text class="t-title" x="745" y="454.5" text-anchor="middle">Apply a queued 👍 / 👎</text>
+<text class="t-sub" x="745" y="470.5" text-anchor="middle">if you rated it early</text>
+<text class="t-title" x="255" y="545.5" text-anchor="middle">Result + “why I did this” → your window</text>
+<text class="elabel" x="268" y="112" text-anchor="middle">no</text>
+<text class="elabel" x="148" y="180" text-anchor="start">yes</text>
+<text class="t-sub" x="530" y="548" text-anchor="start">the background step never delays your result</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Skill types</b> come from the tools used (<code>app_interaction</code>, <code>file_write</code>, <code>open_app</code>…), or from the wording for browser work, and success and failure use the same one.</li>
+        <li><b>The lesson</b> is JSON with what worked, what failed, why, and what to try next. After a retry it compares the failed attempt with the one that worked.</li>
+        <li>A run with no tool calls is not stored (it did nothing), unless you rate it: then it is stored with your note.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="ranking">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 12 · state/semantic_memory.py · recall_sync</p>
+      <h3>How similar tasks are found and ranked</h3>
+      <p class="claim">The new instruction is turned into numbers once, offline, and compared with both past instructions and past lessons, so a lesson learned on one site can help on another.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 290" role="img" aria-label="Recall ranking: one embedding, two searches, then a score that adds your feedback and verified success to similarity." style="--minw:700px"><defs><marker id="ranking-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="160,138 190,138" marker-end="url(#ranking-ah-base)"/>
+<polyline class="edge" points="340,138 360,138 360,68 380,68" marker-end="url(#ranking-ah-base)"/>
+<polyline class="edge" points="360,138 360,208 380,208" marker-end="url(#ranking-ah-base)"/>
+<polyline class="edge" points="600,68 620,68 620,138 640,138" marker-end="url(#ranking-ah-base)"/>
+<polyline class="edge" points="600,208 620,208 620,138"/>
+<polyline class="edge" points="790,138 805,138 805,75 820,75" marker-end="url(#ranking-ah-base)"/>
+<polyline class="edge" points="905,130 905,180" marker-end="url(#ranking-ah-base)"/>
+<rect class="node k-ui" x="20" y="110" width="140" height="56" rx="10"/>
+<rect class="node k-mem" x="190" y="110" width="150" height="56" rx="10"/>
+<rect class="node k-mem" x="380" y="40" width="220" height="56" rx="10"/>
+<rect class="node k-mem" x="380" y="180" width="220" height="56" rx="10"/>
+<rect class="node k-mem" x="640" y="110" width="150" height="56" rx="10"/>
+<rect class="node k-engine" x="820" y="20" width="170" height="110" rx="10"/>
+<rect class="node k-engine" x="820" y="180" width="170" height="56" rx="10"/>
+<text class="t-title" x="90" y="134.5" text-anchor="middle">New task</text>
+<text class="t-sub" x="90" y="150.5" text-anchor="middle">its wording</text>
+<text class="t-title" x="265" y="134.5" text-anchor="middle">Embed once</text>
+<text class="t-sub" x="265" y="150.5" text-anchor="middle">MiniLM · 384 numbers</text>
+<text class="t-title" x="490" y="64.5" text-anchor="middle">Similar instructions</text>
+<text class="t-sub" x="490" y="80.5" text-anchor="middle">experiences · ≥ 0.35</text>
+<text class="t-title" x="490" y="204.5" text-anchor="middle">Relevant lessons</text>
+<text class="t-sub" x="490" y="220.5" text-anchor="middle">lessons · ≥ 0.30</text>
+<text class="t-title" x="715" y="134.5" text-anchor="middle">Merge</text>
+<text class="t-sub" x="715" y="150.5" text-anchor="middle">keep the best match</text>
+<text class="t-title" x="905" y="50.5" text-anchor="middle">Score</text>
+<text class="t-sub" x="905" y="66.5" text-anchor="middle">similarity</text>
+<text class="t-sub" x="905" y="80.5" text-anchor="middle">+ 0.08 × rating (±3)</text>
+<text class="t-sub" x="905" y="94.5" text-anchor="middle">+ 0.05 if it worked</text>
+<text class="t-sub" x="905" y="108.5" text-anchor="middle">+ 0.12 if you gave 👍</text>
+<text class="t-title" x="905" y="204.5" text-anchor="middle">Top 5</text>
+<text class="t-sub" x="905" y="220.5" text-anchor="middle">→ strategy note</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Why lessons are searched too:</b> “Add laptop to cart on new-site” scored 0.03 against a past instruction about headphones, but 0.36 against that task's add-to-cart lesson.</li>
+        <li>If ChromaDB's index is still being written, the search is retried and then answered directly from the stored documents.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="feedback">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 13 · state/brain.py · record_feedback</p>
+      <h3>What 👍 and 👎 change</h3>
+      <p class="claim">Your rating is stored on the task's experience and weighs every future recall of it. 👎 also asks what went wrong; that note is the first thing the agent is told to avoid next time.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll">
+        <div class="matrix" role="table" aria-label="Effect of 👍 and 👎, depending on whether the agent reported success">
+          <div class="mx-corner" role="columnheader">The agent reported…</div>
+          <div class="mx-head" role="columnheader">👍 you: it worked</div>
+          <div class="mx-head" role="columnheader">👎 you: it did not (+ what went wrong)</div>
+          <div class="mx-row" role="rowheader"><span class="tag ok">success</span></div>
+          <div class="mx-cell good" role="cell">Ranked higher next time. Its steps are offered to the planner as a flow to adapt, never replayed as a script.</div>
+          <div class="mx-cell bad" role="cell">Marked disputed: no longer reused as a working example, and the skill it taught is weakened.</div>
+          <div class="mx-row" role="rowheader"><span class="tag err">failed</span></div>
+          <div class="mx-cell good" role="cell">Marked confirmed: it now counts as a success and its approach is reused.</div>
+          <div class="mx-cell bad" role="cell">Weighted more strongly as a failure, so its approach is avoided.</div>
+        </div>
+      </div>
+      <figcaption><ul>
+        <li><b>Rated before it was saved</b> (the background write can be slower than your click): the rating is queued and applied the moment it lands.</li>
+        <li><b>Rated a run that used no tool:</b> the run is stored first, then rated, so your note is kept.</li>
+        <li><b>Rated by voice:</b> “Emma … good job … done” or “Emma … wrong, you should have … done” rates the last task finished in the past 15 minutes, exactly like the buttons; your words become the note (Fig. 23).</li>
+        <li>Score effect in recall: +0.08 per rating point (up to ±3), +0.12 for a run you confirmed.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-local">
+  <div class="chapter-head">
+    <h2 id="ch-local">Acting on this computer</h2>
+    <p>PowerShell, the Win32 API and a vision model: no extra Python packages, and every action aimed at a confirmed window.</p>
+  </div>
+
+  <section class="fig" id="openapp">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 14 · tools/local.py · open_app · tools/desktop.py · wait_until_app_ready</p>
+      <h3>Opening an app</h3>
+      <p class="claim">Launching is easy; knowing the app is ready is not. The agent watches the new window until the splash screen is gone before it types anything.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 590" role="img" aria-label="Opening an app: find it in the Start menu, launch it, wait for its window, then wait until the splash screen is gone." style="--minw:700px"><defs><marker id="openapp-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="openapp-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="openapp-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="openapp-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="190,64 190,96" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge" points="190,152 190,177" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge" points="290,212 410,212" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge err" points="650,212 720,212" marker-end="url(#openapp-ah-err)"/>
+<polyline class="edge" points="530,247 530,290" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge" points="190,247 190,280" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge" points="190,336 190,366" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge warn" points="340,394 720,394" marker-end="url(#openapp-ah-warn)"/>
+<polyline class="edge" points="190,422 190,452" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge" points="340,480 410,480" marker-end="url(#openapp-ah-base)"/>
+<polyline class="edge warn" points="530,518 530,548 190,548 190,508" marker-end="url(#openapp-ah-warn)"/>
+<polyline class="edge ok" points="650,480 720,480" marker-end="url(#openapp-ah-ok)"/>
+<rect class="node k-engine" x="40" y="20" width="300" height="44" rx="22"/>
+<rect class="node k-local" x="40" y="96" width="300" height="56" rx="10"/>
+<polygon class="node k-dec" points="190,177 290,212 190,247 90,212"/>
+<polygon class="node k-dec" points="530,177 650,212 530,247 410,212"/>
+<rect class="node k-err" x="720" y="188" width="260" height="48" rx="10"/>
+<rect class="node k-local" x="420" y="290" width="220" height="48" rx="10"/>
+<rect class="node k-local" x="40" y="280" width="300" height="56" rx="10"/>
+<rect class="node k-local" x="40" y="366" width="300" height="56" rx="10"/>
+<rect class="node k-warn" x="720" y="370" width="260" height="48" rx="10"/>
+<rect class="node k-local" x="40" y="452" width="300" height="56" rx="10"/>
+<polygon class="node k-dec" points="530,442 650,480 530,518 410,480"/>
+<rect class="node k-ok" x="720" y="456" width="260" height="48" rx="10"/>
+<text class="t-title" x="190" y="45.5" text-anchor="middle"><tspan class="mono">open_app(&quot;WhatsApp&quot;)</tspan></text>
+<text class="t-title" x="190" y="120.5" text-anchor="middle">Ask Windows for Start-menu apps</text>
+<text class="t-sub" x="190" y="136.5" text-anchor="middle"><tspan class="mono">Get-StartApps</tspan> · name contains it</text>
+<text class="t-dec" x="190" y="216" text-anchor="middle">Found?</text>
+<text class="t-dec" x="530" y="208.5" text-anchor="middle">A real program</text>
+<text class="t-dec" x="530" y="223.5" text-anchor="middle">path or URI?</text>
+<text class="t-title" x="850" y="208.5" text-anchor="middle">Not opened</text>
+<text class="t-sub" x="850" y="224.5" text-anchor="middle">web app → use <tspan class="mono">navigate_browser</tspan></text>
+<text class="t-title" x="530" y="310.5" text-anchor="middle"><tspan class="mono">cmd /c start</tspan></text>
+<text class="t-sub" x="530" y="326.5" text-anchor="middle">watch 8 s for a window</text>
+<text class="t-title" x="190" y="304.5" text-anchor="middle">Launch it</text>
+<text class="t-sub" x="190" y="320.5" text-anchor="middle"><tspan class="mono">explorer shell:AppsFolder\&lt;AppID&gt;</tspan></text>
+<text class="t-title" x="190" y="390.5" text-anchor="middle">Wait for its window</text>
+<text class="t-sub" x="190" y="406.5" text-anchor="middle">up to 25 s · scored window finder</text>
+<text class="t-title" x="850" y="390.5" text-anchor="middle">No window in 25 s</text>
+<text class="t-sub" x="850" y="406.5" text-anchor="middle">“call list_windows”</text>
+<text class="t-title" x="190" y="476.5" text-anchor="middle">Capture a frame every 0.5 s</text>
+<text class="t-sub" x="190" y="492.5" text-anchor="middle"><tspan class="mono">PrintWindow</tspan> · works behind other windows</text>
+<text class="t-dec" x="530" y="476.5" text-anchor="middle">Splash screen?</text>
+<text class="t-dec" x="530" y="491.5" text-anchor="middle">(&lt; 4.5 % detail)</text>
+<text class="t-title" x="850" y="476.5" text-anchor="middle">Ready</text>
+<text class="t-sub" x="850" y="492.5" text-anchor="middle">2 steady frames · “continue the task”</text>
+<text class="elabel" x="350" y="204" text-anchor="middle">no</text>
+<text class="elabel" x="685" y="204" text-anchor="middle">no</text>
+<text class="elabel" x="538" y="272" text-anchor="start">yes</text>
+<text class="elabel" x="198" y="266" text-anchor="start">yes</text>
+<text class="elabel" x="530" y="388" text-anchor="middle">none</text>
+<text class="elabel" x="360" y="566" text-anchor="middle">yes · keep waiting</text>
+<text class="elabel" x="685" y="472" text-anchor="middle">no</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Splash test:</b> a frame with under 4.5 % non-background pixels and under 2 % edges is a loading screen (measured on WhatsApp's cold start).</li>
+        <li>Frames are captured with <code>PrintWindow</code>, which works even when the new window opened behind the one you are using.</li>
+        <li><b><code>open_app('chrome')</code></b> never starts your Chrome: it opens the agent's own Chrome window. Apps that are not installed yet are installed with <code>install_app</code> (winget: Microsoft Store and winget catalogue), which asks you first when a window is open.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="sendkeys">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 15 · tools/local.py · send_keys · tools/desktop.py · OaskUI</p>
+      <h3>Typing into an app</h3>
+      <p class="claim">Keys are sent only to a window that is proven to be in front, and they go through SendInput, which reaches WebView2 apps like WhatsApp and types any language.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 428" role="img" aria-label="Typing into an app: find the right window, prove it is in front, then send keys and Unicode text with SendInput. Below, the WhatsApp sequence the agent is taught." style="--minw:700px"><defs><marker id="sendkeys-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="sendkeys-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="sendkeys-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="250,72 280,72" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="510,72 540,72" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge ok" points="710,72 760,72" marker-end="url(#sendkeys-ah-ok)"/>
+<polyline class="edge err" points="625,110 625,150" marker-end="url(#sendkeys-ah-err)"/>
+<polyline class="edge" points="240,272 264,272" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="484,272 508,272" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="728,272 752,272" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="240,360 264,360" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="484,360 508,360" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="728,360 752,360" marker-end="url(#sendkeys-ah-base)"/>
+<polyline class="edge" points="862,300 862,316 130,316 130,332" marker-end="url(#sendkeys-ah-base)"/>
+<rect class="node k-local" x="20" y="30" width="230" height="84" rx="10"/>
+<rect class="node k-local" x="280" y="30" width="230" height="84" rx="10"/>
+<polygon class="node k-dec" points="625,34 710,72 625,110 540,72"/>
+<rect class="node k-local" x="760" y="30" width="220" height="84" rx="10"/>
+<rect class="node k-err" x="545" y="150" width="160" height="40" rx="10"/>
+<rect class="node k-local" x="20" y="244" width="220" height="56" rx="10"/>
+<rect class="node k-local" x="264" y="244" width="220" height="56" rx="10"/>
+<rect class="node k-local" x="508" y="244" width="220" height="56" rx="10"/>
+<rect class="node k-local" x="752" y="244" width="220" height="56" rx="10"/>
+<rect class="node k-local" x="20" y="332" width="220" height="56" rx="10"/>
+<rect class="node k-local" x="264" y="332" width="220" height="56" rx="10"/>
+<rect class="node k-warn" x="508" y="332" width="220" height="56" rx="10"/>
+<rect class="node k-local" x="752" y="332" width="220" height="56" rx="10"/>
+<text class="t-title" x="135" y="54.5" text-anchor="middle">Find the window</text>
+<text class="t-sub" x="135" y="70.5" text-anchor="middle">score every visible window:</text>
+<text class="t-sub" x="135" y="84.5" text-anchor="middle">process +100 · title +50</text>
+<text class="t-sub" x="135" y="98.5" text-anchor="middle">host process −80 · bigger wins</text>
+<text class="t-title" x="395" y="54.5" text-anchor="middle">Bring it to the front</text>
+<text class="t-sub" x="395" y="70.5" text-anchor="middle">AttachThreadInput →</text>
+<text class="t-sub" x="395" y="84.5" text-anchor="middle">SetForegroundWindow</text>
+<text class="t-sub" x="395" y="98.5" text-anchor="middle">WebView2: focus the inner view</text>
+<text class="t-dec" x="625" y="68.5" text-anchor="middle">Confirmed</text>
+<text class="t-dec" x="625" y="83.5" text-anchor="middle">in front?</text>
+<text class="t-title" x="870" y="54.5" text-anchor="middle">Type</text>
+<text class="t-sub" x="870" y="70.5" text-anchor="middle"><tspan class="mono">keys</tspan> first: <tspan class="mono">^f</tspan> <tspan class="mono">{ENTER}</tspan> <tspan class="mono">{DOWN}</tspan></text>
+<text class="t-sub" x="870" y="84.5" text-anchor="middle">then <tspan class="mono">text</tspan> as Unicode</text>
+<text class="t-sub" x="870" y="98.5" text-anchor="middle">SendInput · any language</text>
+<text class="t-title" x="625" y="173.5" text-anchor="middle">Nothing sent</text>
+<text class="t-title" x="130" y="268.5" text-anchor="middle"><tspan class="mono">open_app</tspan></text>
+<text class="t-sub" x="130" y="284.5" text-anchor="middle">waits until the app is ready</text>
+<text class="t-title" x="374" y="268.5" text-anchor="middle">clear the search</text>
+<text class="t-sub" x="374" y="284.5" text-anchor="middle"><tspan class="mono">^f^a{BACKSPACE}</tspan></text>
+<text class="t-title" x="618" y="268.5" text-anchor="middle">type the name</text>
+<text class="t-sub" x="618" y="284.5" text-anchor="middle">the chat list filters</text>
+<text class="t-title" x="862" y="268.5" text-anchor="middle">first match</text>
+<text class="t-sub" x="862" y="284.5" text-anchor="middle"><tspan class="mono">{DOWN}</tspan></text>
+<text class="t-title" x="130" y="356.5" text-anchor="middle">open the chat</text>
+<text class="t-sub" x="130" y="372.5" text-anchor="middle"><tspan class="mono">{ENTER}</tspan></text>
+<text class="t-title" x="374" y="356.5" text-anchor="middle">type the message</text>
+<text class="t-sub" x="374" y="372.5" text-anchor="middle"><tspan class="mono">text</tspan> only</text>
+<text class="t-title" x="618" y="356.5" text-anchor="middle">send it</text>
+<text class="t-sub" x="618" y="372.5" text-anchor="middle"><tspan class="mono">{ENTER}</tspan> as its own step</text>
+<text class="t-title" x="862" y="356.5" text-anchor="middle">check once</text>
+<text class="t-sub" x="862" y="372.5" text-anchor="middle"><tspan class="mono">see_window</tspan> · never resend</text>
+<circle class="badge" cx="20" cy="244" r="11"/>
+<text class="badge-t" x="20" y="248" text-anchor="middle">1</text>
+<circle class="badge" cx="264" cy="244" r="11"/>
+<text class="badge-t" x="264" y="248" text-anchor="middle">2</text>
+<circle class="badge" cx="508" cy="244" r="11"/>
+<text class="badge-t" x="508" y="248" text-anchor="middle">3</text>
+<circle class="badge" cx="752" cy="244" r="11"/>
+<text class="badge-t" x="752" y="248" text-anchor="middle">4</text>
+<circle class="badge" cx="20" cy="332" r="11"/>
+<text class="badge-t" x="20" y="336" text-anchor="middle">5</text>
+<circle class="badge" cx="264" cy="332" r="11"/>
+<text class="badge-t" x="264" y="336" text-anchor="middle">6</text>
+<circle class="badge" cx="508" cy="332" r="11"/>
+<text class="badge-t" x="508" y="336" text-anchor="middle">7</text>
+<circle class="badge" cx="752" cy="332" r="11"/>
+<text class="badge-t" x="752" y="336" text-anchor="middle">8</text>
+<text class="elabel" x="735" y="64" text-anchor="middle">yes</text>
+<text class="elabel" x="633" y="134" text-anchor="start">no</text>
+<text class="lane-t" x="20" y="228" text-anchor="start">VERIFIED WHATSAPP SEQUENCE</text>
+<text class="t-sub" x="20" y="412" text-anchor="start">after step 7 the message is sent: the duplicate guard refuses to type it again</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Why scoring:</b> WhatsApp shows two windows titled “WhatsApp” (the app and its web view); the real app window must win every time.</li>
+        <li><b>Why SendInput:</b> .NET SendKeys reported success while WhatsApp received nothing.</li>
+        <li>In one call <code>keys</code> are sent before <code>text</code>, so “type the message” and “press Enter” are separate steps.</li>
+        <li><b>Never Chrome:</b> the window finder skips every Chrome window, and a Chrome window name is refused, so keys never land in your own Chrome.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="seeclick">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 16 · tools/desktop.py · see_window · click_window</p>
+      <h3>Seeing and clicking inside an app</h3>
+      <p class="claim">When there is no keyboard shortcut, the agent looks at the window, asks a vision model where things are as percentages, turns them into pixels, and clicks.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 230" role="img" aria-label="Seeing and clicking inside an app: capture the window, ask the vision model for positions as percentages, convert them to pixels, click, and look again before the next click." style="--minw:700px"><defs><marker id="seeclick-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="seeclick-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="192,82 222,82" marker-end="url(#seeclick-ah-base)"/>
+<polyline class="edge" points="394,82 424,82" marker-end="url(#seeclick-ah-base)"/>
+<polyline class="edge" points="596,82 626,82" marker-end="url(#seeclick-ah-base)"/>
+<polyline class="edge" points="798,82 828,82" marker-end="url(#seeclick-ah-base)"/>
+<polyline class="edge warn dashed" points="914,124 914,180 106,180 106,124" marker-end="url(#seeclick-ah-warn)"/>
+<rect class="node k-local" x="20" y="40" width="172" height="84" rx="10"/>
+<rect class="node k-local" x="222" y="40" width="172" height="84" rx="10"/>
+<rect class="node k-ext" x="424" y="40" width="172" height="84" rx="10"/>
+<rect class="node k-engine" x="626" y="40" width="172" height="84" rx="10"/>
+<rect class="node k-local" x="828" y="40" width="172" height="84" rx="10"/>
+<text class="t-title" x="106" y="71.5" text-anchor="middle">Find + focus</text>
+<text class="t-sub" x="106" y="87.5" text-anchor="middle">same finder as <tspan class="mono">send_keys</tspan></text>
+<text class="t-sub" x="106" y="101.5" text-anchor="middle">missing → no capture</text>
+<text class="t-title" x="308" y="71.5" text-anchor="middle">Capture it</text>
+<text class="t-sub" x="308" y="87.5" text-anchor="middle">CopyFromScreen → PNG</text>
+<text class="t-sub" x="308" y="101.5" text-anchor="middle">window-sized</text>
+<text class="t-title" x="510" y="71.5" text-anchor="middle">Vision model</text>
+<text class="t-sub" x="510" y="87.5" text-anchor="middle">“label → (X%, Y%)”</text>
+<text class="t-sub" x="510" y="101.5" text-anchor="middle">Gemini, then Groq</text>
+<text class="t-title" x="712" y="78.5" text-anchor="middle">Percent → pixels</text>
+<text class="t-sub" x="712" y="94.5" text-anchor="middle">× real window size</text>
+<text class="t-title" x="914" y="71.5" text-anchor="middle"><tspan class="mono">click_window</tspan></text>
+<text class="t-sub" x="914" y="87.5" text-anchor="middle">origin + x, y</text>
+<text class="t-sub" x="914" y="101.5" text-anchor="middle">SetCursorPos · click</text>
+<text class="elabel" x="510" y="200" text-anchor="middle">before the next click, look again · never guess coordinates</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Percentages, not pixels:</b> asked for pixels, the vision model returned x ≈ 900 for a 786-pixel-wide window.</li>
+        <li>A named window that is not open is reported as missing; the agent never falls back to a screenshot of the whole screen and clicks blindly.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="paths">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 17 · tools/local.py · _resolve_user_path · _known_folder</p>
+      <h3>Your real Desktop, not a look-alike</h3>
+      <p class="claim">On this PC, Windows keeps Desktop and Documents inside OneDrive, while an empty <code>C:\Users\samar\Desktop</code> still exists. Every file tool, upload and PowerShell script is pointed at the real folder.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 320" role="img" aria-label="How a path is resolved: folder names and hand-built profile paths go to the folders Windows really uses (here inside OneDrive); everything else is used as written." style="--minw:700px"><defs><marker id="paths-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="paths-ah-local" class="mk local" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="320,60 400,176"/>
+<polyline class="edge local" points="600,176 680,60" marker-end="url(#paths-ah-local)"/>
+<polyline class="edge" points="320,116 400,176"/>
+<polyline class="edge local" points="600,176 680,116" marker-end="url(#paths-ah-local)"/>
+<polyline class="edge" points="320,172 400,176"/>
+<polyline class="edge local" points="600,176 680,172" marker-end="url(#paths-ah-local)"/>
+<polyline class="edge" points="320,228 400,176"/>
+<polyline class="edge" points="600,176 680,228" marker-end="url(#paths-ah-base)"/>
+<polyline class="edge" points="320,284 400,176"/>
+<polyline class="edge" points="600,176 680,284" marker-end="url(#paths-ah-base)"/>
+<rect class="node k-plain" x="20" y="40" width="300" height="40" rx="10"/>
+<rect class="node k-local" x="680" y="40" width="300" height="40" rx="10"/>
+<rect class="node k-plain" x="20" y="96" width="300" height="40" rx="10"/>
+<rect class="node k-local" x="680" y="96" width="300" height="40" rx="10"/>
+<rect class="node k-plain" x="20" y="152" width="300" height="40" rx="10"/>
+<rect class="node k-local" x="680" y="152" width="300" height="40" rx="10"/>
+<rect class="node k-plain" x="20" y="208" width="300" height="40" rx="10"/>
+<rect class="node k-plain" x="680" y="208" width="300" height="40" rx="10"/>
+<rect class="node k-plain" x="20" y="264" width="300" height="40" rx="10"/>
+<rect class="node k-plain" x="680" y="264" width="300" height="40" rx="10"/>
+<rect class="node k-local" x="400" y="120" width="200" height="112" rx="10"/>
+<text class="t-title" x="170" y="63.5" text-anchor="middle"><tspan class="mono">Desktop\MAYANK</tspan></text>
+<text class="t-title" x="830" y="63.5" text-anchor="middle"><tspan class="mono">C:\Users\samar\OneDrive\Desktop\MAYANK</tspan></text>
+<text class="t-title" x="170" y="119.5" text-anchor="middle"><tspan class="mono">%USERPROFILE%\Desktop\x.txt</tspan></text>
+<text class="t-title" x="830" y="119.5" text-anchor="middle"><tspan class="mono">…\OneDrive\Desktop\x.txt</tspan></text>
+<text class="t-title" x="170" y="175.5" text-anchor="middle"><tspan class="mono">$env:USERPROFILE\Desktop</tspan> in a script</text>
+<text class="t-title" x="830" y="175.5" text-anchor="middle">rewritten before PowerShell runs</text>
+<text class="t-title" x="170" y="231.5" text-anchor="middle"><tspan class="mono">D:\work\a.txt</tspan></text>
+<text class="t-title" x="830" y="231.5" text-anchor="middle"><tspan class="mono">D:\work\a.txt</tspan> (unchanged)</text>
+<text class="t-title" x="170" y="287.5" text-anchor="middle"><tspan class="mono">projects\y.txt</tspan></text>
+<text class="t-title" x="830" y="287.5" text-anchor="middle"><tspan class="mono">C:\Users\samar\projects\y.txt</tspan></text>
+<text class="t-title" x="500" y="151.5" text-anchor="middle">Resolve the path</text>
+<text class="t-sub" x="500" y="167.5" text-anchor="middle">Known Folders registry</text>
+<text class="t-sub" x="500" y="181.5" text-anchor="middle">User Shell Folders</text>
+<text class="t-sub" x="500" y="195.5" text-anchor="middle">Desktop · Documents ·</text>
+<text class="t-sub" x="500" y="209.5" text-anchor="middle">Downloads · Pictures…</text>
+</svg></div>
+      <figcaption><ul>
+        <li>The real locations come from the registry key <code>…\Explorer\User Shell Folders</code>.</li>
+        <li>A hand-built profile path is only rewritten when Windows keeps that folder somewhere else; Downloads, here, stays where it is.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="delete">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 18 · tools/local.py · delete_path · _protected_paths · _recycle</p>
+      <h3>Deleting, safely</h3>
+      <p class="claim">Deletes always go to the Recycle Bin, and the folders your work lives in can never be deleted as a whole.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 280" role="img" aria-label="Deleting: the item must exist and must not be a protected folder; it then goes to the Recycle Bin, so it can be restored." style="--minw:700px"><defs><marker id="delete-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="delete-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="delete-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="delete-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="180,118 225,118" marker-end="url(#delete-ah-base)"/>
+<polyline class="edge" points="375,118 430,118" marker-end="url(#delete-ah-base)"/>
+<polyline class="edge ok" points="630,118 700,118" marker-end="url(#delete-ah-ok)"/>
+<polyline class="edge warn" points="300,153 300,200" marker-end="url(#delete-ah-warn)"/>
+<polyline class="edge err" points="530,153 530,200" marker-end="url(#delete-ah-err)"/>
+<rect class="node k-engine" x="20" y="90" width="160" height="56" rx="10"/>
+<polygon class="node k-dec" points="300,83 375,118 300,153 225,118"/>
+<polygon class="node k-dec" points="530,83 630,118 530,153 430,118"/>
+<rect class="node k-local" x="700" y="90" width="280" height="56" rx="10"/>
+<rect class="node k-warn" x="225" y="200" width="150" height="44" rx="10"/>
+<rect class="node k-err" x="430" y="200" width="200" height="44" rx="10"/>
+<text class="t-title" x="100" y="114.5" text-anchor="middle"><tspan class="mono">delete_path(x)</tspan></text>
+<text class="t-sub" x="100" y="130.5" text-anchor="middle">resolved path</text>
+<text class="t-dec" x="300" y="122" text-anchor="middle">Exists?</text>
+<text class="t-dec" x="530" y="114.5" text-anchor="middle">Protected</text>
+<text class="t-dec" x="530" y="129.5" text-anchor="middle">folder?</text>
+<text class="t-title" x="840" y="114.5" text-anchor="middle">Recycle Bin</text>
+<text class="t-sub" x="840" y="130.5" text-anchor="middle">SHFileOperationW · FOF_ALLOWUNDO</text>
+<text class="t-title" x="300" y="218.5" text-anchor="middle">Not found</text>
+<text class="t-sub" x="300" y="234.5" text-anchor="middle">nothing deleted</text>
+<text class="t-title" x="530" y="218.5" text-anchor="middle">Refused</text>
+<text class="t-sub" x="530" y="234.5" text-anchor="middle">drive roots · Windows · home</text>
+<text class="elabel" x="402" y="110" text-anchor="middle">yes</text>
+<text class="elabel" x="665" y="110" text-anchor="middle">no</text>
+<text class="elabel" x="308" y="180" text-anchor="start">no</text>
+<text class="elabel" x="538" y="180" text-anchor="start">yes</text>
+<text class="t-sub" x="700" y="200" text-anchor="start">protected: drive roots, Windows, Program Files,</text>
+<text class="t-sub" x="700" y="216" text-anchor="start">C:\Users, your home folder, and Desktop,</text>
+<text class="t-sub" x="700" y="232" text-anchor="start">Documents, Downloads, Pictures, Videos, Music,</text>
+<text class="t-sub" x="700" y="248" text-anchor="start">OneDrive themselves (their contents are fine)</text>
+</svg></div>
+      <figcaption><ul>
+        <li>If Windows cancels the operation, the tool says nothing was deleted instead of reporting success.</li>
+        <li>Create, write, move and copy follow the same path resolution (Fig. 17); a folder copied into an existing folder lands inside it as a sub-folder.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="search">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 19 · tools/local.py · _walk_files · find_files · search_in_files</p>
+      <h3>Searching your files</h3>
+      <p class="claim">Searches look at the files nearest the starting folder first and skip folders full of generated files, so “search my Desktop” covers what you mean before the time budget runs out.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 350" role="img" aria-label="Searching: nearest files first (breadth-first), generated folders skipped, and a clear PARTIAL RESULT when the time budget runs out." style="--minw:700px"><defs><marker id="search-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="search-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="410,60 410,85"/>
+<polyline class="edge" points="95,85 665,85"/>
+<polyline class="edge" points="95,85 95,110" marker-end="url(#search-ah-base)"/>
+<polyline class="edge" points="275,85 275,110" marker-end="url(#search-ah-base)"/>
+<polyline class="edge" points="475,85 475,110" marker-end="url(#search-ah-base)"/>
+<polyline class="edge err" points="665,85 665,110" marker-end="url(#search-ah-err)"/>
+<polyline class="edge" points="275,150 275,200"/>
+<polyline class="edge" points="475,150 475,200"/>
+<polyline class="edge" points="275,240 275,290"/>
+<rect class="node k-local" x="330" y="20" width="160" height="40" rx="10"/>
+<rect class="node k-plain" x="20" y="110" width="150" height="40" rx="10"/>
+<rect class="node k-local" x="200" y="110" width="150" height="40" rx="10"/>
+<rect class="node k-local" x="380" y="110" width="190" height="40" rx="10"/>
+<rect class="node k-err dashed" x="600" y="110" width="130" height="40" rx="10"/>
+<rect class="node k-local" x="200" y="200" width="150" height="40" rx="10"/>
+<rect class="node k-plain" x="380" y="200" width="190" height="40" rx="10"/>
+<rect class="node k-plain" x="160" y="290" width="230" height="40" rx="10"/>
+<rect class="node k-warn" x="740" y="180" width="240" height="140" rx="10"/>
+<text class="t-title" x="410" y="43.5" text-anchor="middle">Desktop</text>
+<text class="t-title" x="95" y="133.5" text-anchor="middle">notes.txt</text>
+<text class="t-title" x="275" y="133.5" text-anchor="middle">Projects\</text>
+<text class="t-title" x="475" y="133.5" text-anchor="middle">Virtual Machine setup\</text>
+<text class="t-title" x="665" y="133.5" text-anchor="middle">.venv\ skipped</text>
+<text class="t-title" x="275" y="223.5" text-anchor="middle">model\dataset\</text>
+<text class="t-title" x="475" y="223.5" text-anchor="middle">lab.md</text>
+<text class="t-title" x="275" y="313.5" text-anchor="middle">labels\ · 4,736 .txt files</text>
+<text class="t-title" x="860" y="225.5" text-anchor="middle">Time budget</text>
+<text class="t-sub" x="860" y="241.5" text-anchor="middle"><tspan class="mono">search_in_files</tspan> 20 s</text>
+<text class="t-sub" x="860" y="255.5" text-anchor="middle"><tspan class="mono">find_files</tspan> 6 s</text>
+<text class="t-sub" x="860" y="269.5" text-anchor="middle">time up → answer starts</text>
+<text class="t-sub" x="860" y="283.5" text-anchor="middle">with PARTIAL RESULT</text>
+<circle class="badge" cx="20" cy="110" r="11"/>
+<text class="badge-t" x="20" y="114" text-anchor="middle">1</text>
+<circle class="badge" cx="380" cy="200" r="11"/>
+<text class="badge-t" x="380" y="204" text-anchor="middle">2</text>
+<circle class="badge" cx="160" cy="290" r="11"/>
+<text class="badge-t" x="160" y="294" text-anchor="middle">3</text>
+<rect class="bar-track" x="760" y="296" width="200" height="8" rx="4"/><rect class="bar-fill" x="760" y="296" width="200" height="8" rx="4"/>
+<text class="t-sub" x="20" y="200" text-anchor="start">1 → 2 → 3: shallow files first</text>
+<text class="t-sub" x="20" y="216" text-anchor="start">skipped below the root:</text>
+<text class="t-sub" x="20" y="232" text-anchor="start">.venv · node_modules · .git</text>
+<text class="t-sub" x="20" y="248" text-anchor="start">.next · dist · build · AppData</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>On this Desktop:</b> <code>Projects</code> holds 30,339 files, mostly ML datasets; searched depth-first, it used the whole budget and shallow folders were never reached.</li>
+        <li><code>find_files</code> returns up to 15 matches, newest first, so “the last ppt” is the most recent one.</li>
+        <li>Content search reads text files up to 5 MB and checks each file once before listing matching lines.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-chrome">
+  <div class="chapter-head">
+    <h2 id="ch-chrome">Acting in Chrome</h2>
+    <p>Playwright over the Chrome DevTools Protocol, in the agent's own Chrome window, next to yours.</p>
+  </div>
+
+  <section class="fig" id="chrome">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 20 · browser/controller.py · connect</p>
+      <h3>Getting a browser to work in</h3>
+      <p class="claim">Chrome 136 and later refuse the debugging port on Chrome's normal profile folder, so the agent works in its own Chrome window, on its own profile. Your Chrome and all its profiles are never launched, copied or read.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 350" role="img" aria-label="Connecting to Chrome: the agent attaches to its own window or starts it on its own profile; your Chrome and all its profiles are never touched." style="--minw:700px"><defs><marker id="chrome-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="chrome-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge ok" points="560,48 650,48"/>
+<polyline class="edge err" points="300,76 300,100" marker-end="url(#chrome-ah-err)"/>
+<polyline class="edge ok" points="560,128 650,128"/>
+<polyline class="edge err" points="300,156 300,180" marker-end="url(#chrome-ah-err)"/>
+<polyline class="edge ok" points="560,208 650,208"/>
+<polyline class="edge ok" points="650,48 650,208"/>
+<polyline class="edge ok" points="650,128 720,128" marker-end="url(#chrome-ah-ok)"/>
+<polyline class="edge dashed" points="20,264 980,264"/>
+<rect class="node k-engine" x="40" y="20" width="520" height="56" rx="10"/>
+<rect class="node k-ext" x="40" y="100" width="520" height="56" rx="10"/>
+<rect class="node k-ext" x="40" y="180" width="520" height="56" rx="10"/>
+<rect class="node k-ok" x="720" y="80" width="260" height="96" rx="10"/>
+<rect class="node k-local" x="40" y="280" width="940" height="56" rx="10"/>
+<text class="t-title" x="300" y="44.5" text-anchor="middle">Attach to Chrome already on :9222</text>
+<text class="t-sub" x="300" y="60.5" text-anchor="middle">normally the agent&#x27;s window · opens its own tab · the only step at start-up</text>
+<text class="t-title" x="300" y="124.5" text-anchor="middle">Launch the agent&#x27;s own Chrome window</text>
+<text class="t-sub" x="300" y="140.5" text-anchor="middle"><tspan class="mono">chrome_profile</tspan> · named “Self-Improving Agent” · its logins are kept</text>
+<text class="t-title" x="300" y="204.5" text-anchor="middle">Playwright window on the same profile, then Chromium</text>
+<text class="t-sub" x="300" y="220.5" text-anchor="middle">last resort</text>
+<text class="t-title" x="850" y="110.5" text-anchor="middle">Connected</text>
+<text class="t-sub" x="850" y="126.5" text-anchor="middle">tools use the agent tab</text>
+<text class="t-sub" x="850" y="140.5" text-anchor="middle">title bar: Self-Improving Agent</text>
+<text class="t-sub" x="850" y="154.5" text-anchor="middle">closed gracefully on shut-down</text>
+<text class="t-title" x="510" y="304.5" text-anchor="middle">Your Chrome and all its profiles</text>
+<text class="t-sub" x="510" y="320.5" text-anchor="middle">never launched, copied or read by the agent · stay signed in · keep opening while the agent works</text>
+<circle class="badge" cx="40" cy="20" r="11"/>
+<text class="badge-t" x="40" y="24" text-anchor="middle">1</text>
+<circle class="badge" cx="40" cy="100" r="11"/>
+<text class="badge-t" x="40" y="104" text-anchor="middle">2</text>
+<circle class="badge" cx="40" cy="180" r="11"/>
+<text class="badge-t" x="40" y="184" text-anchor="middle">3</text>
+<text class="elabel" x="308" y="92" text-anchor="start">fails</text>
+<text class="elabel" x="308" y="172" text-anchor="start">fails</text>
+<text class="elabel" x="685" y="120" text-anchor="middle">works</text>
+<text class="lane-t" x="40" y="256" text-anchor="start">SEPARATE PROFILE FOLDERS · NOTHING SHARED</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Sign in once:</b> the agent's profile lives in <code>~/.self_improving_agent/chrome_profile</code> and is kept, so a site you sign into in the agent's window stays signed in for it. <code>start_chrome_debugging.bat</code> opens that window ahead of time.</li>
+        <li><b>Why not a copy of your profile:</b> until 17 September 2026 the agent ran on one, Google sign-in included. The same sign-in used in two browsers kept signing your own “Person 1” out, and starting your real profile folder a second way stopped your other profiles from opening.</li>
+        <li>Every browser action waits a random 1–3 s first, like a person would.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="click">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 21 · tools/browser.py · click_element · browser/actions.py · _click</p>
+      <h3>Clicking something on a page</h3>
+      <p class="claim">A payment check comes first. Then the element is searched for in several ways within 6 seconds, and clicked in up to three ways.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 310" role="img" aria-label="Clicking on a page: a payment check first, then a 6-second search through several ways of finding the element, then three ways of clicking it." style="--minw:700px"><defs><marker id="click-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="click-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="click-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge warn" points="320,48 360,48" marker-end="url(#click-ah-warn)"/>
+<polyline class="edge" points="95,76 95,124" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="164,150 183,150" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="327,150 346,150" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="490,150 509,150" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="653,150 672,150" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="816,150 835,150" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="95,176 95,234" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="245,260 265,260" marker-end="url(#click-ah-base)"/>
+<polyline class="edge" points="490,260 510,260" marker-end="url(#click-ah-base)"/>
+<polyline class="edge err" points="735,260 755,260" marker-end="url(#click-ah-err)"/>
+<rect class="node k-plain" x="20" y="20" width="300" height="56" rx="10"/>
+<rect class="node k-warn" x="360" y="26" width="200" height="44" rx="10"/>
+<rect class="node k-ext" x="20" y="124" width="144" height="52" rx="10"/>
+<rect class="node k-ext" x="183" y="124" width="144" height="52" rx="10"/>
+<rect class="node k-ext" x="346" y="124" width="144" height="52" rx="10"/>
+<rect class="node k-ext" x="509" y="124" width="144" height="52" rx="10"/>
+<rect class="node k-ext" x="672" y="124" width="144" height="52" rx="10"/>
+<rect class="node k-ext" x="835" y="124" width="144" height="52" rx="10"/>
+<rect class="node k-ext" x="20" y="234" width="225" height="52" rx="10"/>
+<rect class="node k-ext" x="265" y="234" width="225" height="52" rx="10"/>
+<rect class="node k-ext" x="510" y="234" width="225" height="52" rx="10"/>
+<rect class="node k-err" x="755" y="234" width="225" height="52" rx="10"/>
+<text class="t-title" x="170" y="44.5" text-anchor="middle">Checkout or payment?</text>
+<text class="t-sub" x="170" y="60.5" text-anchor="middle">payment words · payment URL</text>
+<text class="t-title" x="460" y="51.5" text-anchor="middle">Ask you first</text>
+<text class="t-title" x="92" y="146.5" text-anchor="middle">selector</text>
+<text class="t-sub" x="92" y="162.5" text-anchor="middle">as given</text>
+<text class="t-title" x="255" y="146.5" text-anchor="middle">text match</text>
+<text class="t-sub" x="255" y="162.5" text-anchor="middle">“Sign in”</text>
+<text class="t-title" x="418" y="146.5" text-anchor="middle">role</text>
+<text class="t-sub" x="418" y="162.5" text-anchor="middle">button · link · tab</text>
+<text class="t-title" x="581" y="146.5" text-anchor="middle">attributes</text>
+<text class="t-sub" x="581" y="162.5" text-anchor="middle">href · alt · aria</text>
+<text class="t-title" x="744" y="146.5" text-anchor="middle">game area</text>
+<text class="t-sub" x="744" y="162.5" text-anchor="middle">canvas · iframe</text>
+<text class="t-title" x="907" y="146.5" text-anchor="middle">inside frames</text>
+<text class="t-sub" x="907" y="162.5" text-anchor="middle">up to 5</text>
+<text class="t-title" x="132.5" y="256.5" text-anchor="middle">normal click</text>
+<text class="t-sub" x="132.5" y="272.5" text-anchor="middle">≤ 3 s</text>
+<text class="t-title" x="377.5" y="256.5" text-anchor="middle">forced click</text>
+<text class="t-sub" x="377.5" y="272.5" text-anchor="middle">≤ 1.5 s</text>
+<text class="t-title" x="622.5" y="256.5" text-anchor="middle">JavaScript click</text>
+<text class="t-sub" x="622.5" y="272.5" text-anchor="middle">nearest clickable parent</text>
+<text class="t-title" x="867.5" y="256.5" text-anchor="middle">failed</text>
+<text class="t-sub" x="867.5" y="272.5" text-anchor="middle">“pick one from perceive_page”</text>
+<text class="elabel" x="340" y="40" text-anchor="middle">yes</text>
+<text class="elabel" x="103" y="104" text-anchor="start">no, or you said yes</text>
+<text class="lane-t" x="360" y="114" text-anchor="start">FIND IT · VISIBLE MATCHES WIN · 6 S IN TOTAL</text>
+<text class="elabel" x="103" y="210" text-anchor="start">found</text>
+<text class="lane-t" x="360" y="224" text-anchor="start">CLICK IT</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Why the 6 s budget:</b> on chatgpt.com one click spent 121 s searching several iframes before the limit existed.</li>
+        <li>Typing works the same way in stages: fill the field, then keyboard insert, then direct injection into code editors (CodeMirror, Monaco).</li>
+        <li>Navigation counts as reached as soon as the site answers; a page still loading is reported, not reopened.</li>
+        <li><b>New tabs:</b> a link that opens a new tab (Flipkart products) makes that tab the agent's working tab.</li>
+        <li><b><code>add_to_cart</code></b> finds the Add to Cart / Add to Bag button, picks the size you named, and only reports “Added to cart” when the cart count rose or the shop said so. It never presses Buy Now.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="upload">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 22 · tools/browser.py · upload_file · _attach_file</p>
+      <h3>Attaching a file from this computer</h3>
+      <p class="claim">The agent fills the page's file picker directly through Playwright, so the Windows file dialog never appears, and it asks you before any file leaves the computer.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 280" role="img" aria-label="Uploading a file to a web page: private files are refused, you approve the upload, and the page&#x27;s file picker is filled directly, never the Windows dialog." style="--minw:700px"><defs><marker id="upload-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="upload-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="upload-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="220,48 250,48" marker-end="url(#upload-ah-base)"/>
+<polyline class="edge err" points="330,80 330,120" marker-end="url(#upload-ah-err)"/>
+<polyline class="edge" points="410,48 455,48" marker-end="url(#upload-ah-base)"/>
+<polyline class="edge err" points="540,80 540,120" marker-end="url(#upload-ah-err)"/>
+<polyline class="edge ok" points="625,48 660,48" marker-end="url(#upload-ah-ok)"/>
+<polyline class="edge" points="820,76 820,120" marker-end="url(#upload-ah-base)"/>
+<rect class="node k-engine" x="20" y="20" width="200" height="56" rx="10"/>
+<polygon class="node k-dec" points="330,16 410,48 330,80 250,48"/>
+<rect class="node k-err" x="245" y="120" width="170" height="44" rx="10"/>
+<polygon class="node k-warn" points="540,16 625,48 540,80 455,48"/>
+<rect class="node k-err" x="455" y="120" width="170" height="44" rx="10"/>
+<rect class="node k-ext" x="660" y="20" width="320" height="56" rx="10"/>
+<rect class="node k-ok" x="660" y="120" width="320" height="44" rx="10"/>
+<rect class="node k-warn" x="660" y="200" width="320" height="56" rx="10"/>
+<text class="t-title" x="120" y="44.5" text-anchor="middle"><tspan class="mono">upload_file(path)</tspan></text>
+<text class="t-sub" x="120" y="60.5" text-anchor="middle">resolved like the file tools</text>
+<text class="t-dec" x="330" y="52" text-anchor="middle">Private file?</text>
+<text class="t-title" x="330" y="138.5" text-anchor="middle">Blocked</text>
+<text class="t-sub" x="330" y="154.5" text-anchor="middle">keys · .env · passwords</text>
+<text class="t-dec" x="540" y="52" text-anchor="middle">You approve?</text>
+<text class="t-title" x="540" y="138.5" text-anchor="middle">Not uploaded</text>
+<text class="t-sub" x="540" y="154.5" text-anchor="middle">reported, not retried</text>
+<text class="t-title" x="820" y="37.5" text-anchor="middle">Attach</text>
+<text class="t-sub" x="820" y="53.5" text-anchor="middle">fill the page’s file input, or click Attach</text>
+<text class="t-sub" x="820" y="67.5" text-anchor="middle">and fill the file chooser it opens</text>
+<text class="t-title" x="820" y="145.5" text-anchor="middle">Wait 2 s → <tspan class="mono">see_page</tspan> confirms</text>
+<text class="t-title" x="820" y="224.5" text-anchor="middle">No attach button found</text>
+<text class="t-sub" x="820" y="240.5" text-anchor="middle"><tspan class="mono">perceive_page</tspan>, then retry with its selector</text>
+<text class="elabel" x="338" y="102" text-anchor="start">yes</text>
+<text class="elabel" x="432" y="40" text-anchor="middle">no</text>
+<text class="elabel" x="548" y="102" text-anchor="start">no</text>
+<text class="elabel" x="642" y="40" text-anchor="middle">yes</text>
+<text class="t-sub" x="20" y="220" text-anchor="start">no window open to ask (wake word, REST):</text>
+<text class="t-sub" x="20" y="236" text-anchor="start">the upload goes ahead without the question</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Full flow for “attach the last ppt from Downloads to Gemini”:</b> <code>find_files</code> (newest first) → <code>navigate_browser</code> → <code>upload_file</code> → <code>see_page</code> → <code>type_into_element</code> with Enter.</li>
+        <li>Refused: private keys, <code>.env</code> files, files named like passwords or credentials, <code>.ssh</code> and browser credential stores.</li>
+        <li><b>The other direction:</b> <code>download_file</code> clicks a download link (or opens a file link) and waits until the file is in your Downloads folder. Every download in the agent's window is saved there; before 17 Sep 2026 Playwright kept them in a temporary folder that was deleted.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-voice">
+  <div class="chapter-head">
+    <h2 id="ch-voice">Voice and models</h2>
+    <p>Hands-free input, and how every model call survives free-tier limits.</p>
+  </div>
+
+  <section class="fig" id="wake">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 23 · app/wake_listener.py · app/voice.py</p>
+      <h3>“Emma … done”</h3>
+      <p class="claim">Vosk listens offline for two words only, with look-alike decoy words to absorb sounds that are almost “Emma”. Nothing is run until “done” is heard, and the instruction itself is transcribed once, accurately, by Whisper.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 330" role="img" aria-label="The wake word as a state machine: idle until a phrase starts with “Emma”, record until “done”, then transcribe once and save a rating or run the task; 30 seconds without “done” discards the recording." style="--minw:700px"><defs><marker id="wake-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="wake-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="270,160 390,160" marker-end="url(#wake-ah-base)"/>
+<polyline class="edge" points="620,160 740,160" marker-end="url(#wake-ah-base)"/>
+<polyline class="edge" points="855,230 855,290 155,290 155,230" marker-end="url(#wake-ah-base)"/>
+<polyline class="edge" points="80,120 80,84 180,84 180,120" marker-end="url(#wake-ah-base)"/>
+<polyline class="edge err" points="505,120 505,56 240,56 240,120" marker-end="url(#wake-ah-err)"/>
+<rect class="node k-ui" x="40" y="120" width="230" height="110" rx="10"/>
+<rect class="node k-ui" x="390" y="120" width="230" height="110" rx="10"/>
+<rect class="node k-engine" x="740" y="120" width="230" height="110" rx="10"/>
+<text class="t-title" x="155" y="150.5" text-anchor="middle">IDLE</text>
+<text class="t-sub" x="155" y="166.5" text-anchor="middle">2-second phrases</text>
+<text class="t-sub" x="155" y="180.5" text-anchor="middle">Vosk grammar: “emma”, “done”</text>
+<text class="t-sub" x="155" y="194.5" text-anchor="middle">and look-alike decoy words</text>
+<text class="t-sub" x="155" y="208.5" text-anchor="middle">offline · no API key</text>
+<text class="t-title" x="505" y="150.5" text-anchor="middle">RECORDING</text>
+<text class="t-sub" x="505" y="166.5" text-anchor="middle">rising beep · mic stays open</text>
+<text class="t-sub" x="505" y="180.5" text-anchor="middle">keeps chunks ≥ 0.3 s</text>
+<text class="t-sub" x="505" y="194.5" text-anchor="middle">checks each chunk for “done”</text>
+<text class="t-sub" x="505" y="208.5" text-anchor="middle">30 s limit</text>
+<text class="t-title" x="855" y="150.5" text-anchor="middle">PROCESSING</text>
+<text class="t-sub" x="855" y="166.5" text-anchor="middle">one Groq Whisper pass</text>
+<text class="t-sub" x="855" y="180.5" text-anchor="middle">strip “Emma” and “done”</text>
+<text class="t-sub" x="855" y="194.5" text-anchor="middle">a rating → last task (Fig. 13)</text>
+<text class="t-sub" x="855" y="208.5" text-anchor="middle">else run it (Fig. 4)</text>
+<text class="elabel" x="330" y="152" text-anchor="middle">“Emma” first</text>
+<text class="elabel" x="680" y="152" text-anchor="middle">“done”</text>
+<text class="elabel" x="505" y="310" text-anchor="middle">result or saved rating to every open window · beeps</text>
+<text class="elabel" x="130" y="76" text-anchor="middle">decoys, other words</text>
+<text class="elabel" x="372" y="48" text-anchor="middle">30 s without “done”: nothing is run</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Measured on real recordings:</b> 4 of 4 speakers’ “Emma” were heard, and 0 of 59 other words woke it (anna, hammer, karma, drama, llama, and every “hello” and “done” clip). Without the decoy words, 10 of the 59 did.</li>
+        <li>“Emma” must start the phrase (“Emma, …” or “hey Emma, …”): “…and ask Emma”, or noise heard as “amber emma”, does not wake it.</li>
+        <li><b>30 seconds without “done”</b> discards the recording with a low buzz, and nothing is run. Until 17 September a timeout ran whatever had been recorded, so talk in the room could become a task.</li>
+        <li>The mic button in the windows records audio in the page and sends it for the same Whisper transcription.</li>
+        <li><b>Rating by voice:</b> a transcript that starts with “good job”, “perfect”, “wrong, …”, “that was wrong because …” or “feedback …” is saved as 👍 / 👎 on the last task instead of being run. Two short beeps confirm it: rising for 👍, falling for 👎.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="llm">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 24 · utils/litellm_patch.py · utils/key_pool.py · utils/llm.py</p>
+      <h3>Every LLM call, on free keys</h3>
+      <p class="claim">Several free Groq keys rotate, each resting separately per model after a rate limit; Google Gemini answers when all of them are resting or Groq is down.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 540" role="img" aria-label="Every LLM call: the next Groq key that is not cooling for this model; rate limits cool that key, and Gemini takes over when every key is cooling or Groq is down." style="--minw:700px"><defs><marker id="llm-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="llm-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="llm-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="llm-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="300,68 300,96" marker-end="url(#llm-ah-base)"/>
+<polyline class="edge" points="300,148 300,175" marker-end="url(#llm-ah-base)"/>
+<polyline class="edge" points="300,245 300,280" marker-end="url(#llm-ah-base)"/>
+<polyline class="edge" points="300,332 300,365" marker-end="url(#llm-ah-base)"/>
+<polyline class="edge ok" points="300,435 300,470" marker-end="url(#llm-ah-ok)"/>
+<polyline class="edge warn" points="210,400 60,400 60,122 200,122" marker-end="url(#llm-ah-warn)"/>
+<polyline class="edge warn" points="410,210 560,210" marker-end="url(#llm-ah-warn)"/>
+<polyline class="edge err" points="390,400 710,400 710,238" marker-end="url(#llm-ah-err)"/>
+<polyline class="edge warn dashed" points="710,186 710,136" marker-end="url(#llm-ah-warn)"/>
+<polyline class="edge" points="820,238 820,300" marker-end="url(#llm-ah-base)"/>
+<rect class="node k-engine" x="200" y="20" width="200" height="48" rx="24"/>
+<rect class="node k-engine" x="200" y="96" width="200" height="52" rx="10"/>
+<polygon class="node k-dec" points="300,175 410,210 300,245 190,210"/>
+<rect class="node k-ext" x="200" y="280" width="200" height="52" rx="10"/>
+<polygon class="node k-dec" points="300,365 390,400 300,435 210,400"/>
+<rect class="node k-ok" x="200" y="470" width="200" height="44" rx="10"/>
+<rect class="node k-ext" x="560" y="186" width="300" height="52" rx="10"/>
+<rect class="node k-warn dashed" x="560" y="80" width="300" height="56" rx="10"/>
+<rect class="node k-ok" x="720" y="300" width="240" height="44" rx="10"/>
+<text class="t-title" x="300" y="40.5" text-anchor="middle">LLM call</text>
+<text class="t-sub" x="300" y="56.5" text-anchor="middle">role → model</text>
+<text class="t-title" x="300" y="118.5" text-anchor="middle">Next Groq key</text>
+<text class="t-sub" x="300" y="134.5" text-anchor="middle">not cooling for this model</text>
+<text class="t-dec" x="300" y="206.5" text-anchor="middle">Every key cooling</text>
+<text class="t-dec" x="300" y="221.5" text-anchor="middle">for more than 3 s?</text>
+<text class="t-title" x="300" y="302.5" text-anchor="middle">Call Groq</text>
+<text class="t-sub" x="300" y="318.5" text-anchor="middle">≥ 2 s after the last call</text>
+<text class="t-dec" x="300" y="404" text-anchor="middle">Response?</text>
+<text class="t-title" x="300" y="495.5" text-anchor="middle">Answer</text>
+<text class="t-title" x="710" y="208.5" text-anchor="middle">Gemini fallback</text>
+<text class="t-sub" x="710" y="224.5" text-anchor="middle">3.6-flash → 2.5-flash-lite</text>
+<text class="t-title" x="710" y="97.5" text-anchor="middle">Circuit breaker</text>
+<text class="t-sub" x="710" y="113.5" text-anchor="middle">quota → skip model 5 min</text>
+<text class="t-sub" x="710" y="127.5" text-anchor="middle">overload / timeout → 2 min</text>
+<text class="t-title" x="840" y="318.5" text-anchor="middle">Answer</text>
+<text class="t-sub" x="840" y="334.5" text-anchor="middle">or the last error</text>
+<text class="elabel" x="308" y="266" text-anchor="start">no</text>
+<text class="elabel" x="308" y="456" text-anchor="start">ok</text>
+<text class="elabel" x="52" y="260" text-anchor="end">429</text>
+<text class="t-sub" x="70" y="380" text-anchor="start">cool this key for this model</text>
+<text class="t-sub" x="70" y="396" text-anchor="start">as long as Groq says</text>
+<text class="elabel" x="485" y="202" text-anchor="middle">yes</text>
+<text class="elabel" x="550" y="394" text-anchor="middle">5xx · timeout · connection error</text>
+<text class="elabel" x="718" y="166" text-anchor="start">on failure</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Models:</b> <code>gpt-oss-120b</code> plans, acts, reflects and judges; <code>gpt-oss-20b</code> does routine steps; Gemini and Groq <code>qwen</code> read screenshots; Whisper transcribes.</li>
+        <li>Long conversations are shortened before sending, but never the system prompt, the task, or the two newest messages.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+</section>
+
+<!-- ============================================================ -->
+<section class="chapter" aria-labelledby="ch-app">
+  <div class="chapter-head">
+    <h2 id="ch-app">The desktop app and safety</h2>
+    <p>Starting, updating and stopping the agent, and the lines it never crosses.</p>
+  </div>
+
+  <section class="fig" id="desktop">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 25 · desktop/agent_desktop.pyw · on_show_request · poll_health · quit</p>
+      <h3>Opening the icon again, and stopping everything</h3>
+      <p class="claim">The second launch only sends “show”. The running app decides what that means: update itself, start the agent, update the agent, or open a fresh chat.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 510" role="img" aria-label="Opening the icon while the app is running: restart outdated code, start a stopped agent, or open a new chat. The health check only reports; closing the window or Quit stops the agent, its Chrome and the wake word." style="--minw:700px"><defs><marker id="desktop-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="desktop-ah-warn" class="mk warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="500,64 500,85" marker-end="url(#desktop-ah-base)"/>
+<polyline class="edge warn" points="610,120 760,120" marker-end="url(#desktop-ah-warn)"/>
+<polyline class="edge" points="500,155 500,195" marker-end="url(#desktop-ah-base)"/>
+<polyline class="edge" points="390,230 280,230" marker-end="url(#desktop-ah-base)"/>
+<polyline class="edge" points="500,265 500,305" marker-end="url(#desktop-ah-base)"/>
+<polyline class="edge warn" points="620,340 760,340" marker-end="url(#desktop-ah-warn)"/>
+<polyline class="edge" points="500,375 500,420" marker-end="url(#desktop-ah-base)"/>
+<rect class="node k-ui" x="380" y="20" width="240" height="44" rx="22"/>
+<polygon class="node k-dec" points="500,85 610,120 500,155 390,120"/>
+<rect class="node k-warn" x="760" y="96" width="220" height="48" rx="10"/>
+<polygon class="node k-dec" points="500,195 610,230 500,265 390,230"/>
+<rect class="node k-engine" x="40" y="206" width="240" height="48" rx="10"/>
+<polygon class="node k-dec" points="500,305 620,340 500,375 380,340"/>
+<rect class="node k-warn" x="760" y="316" width="220" height="48" rx="10"/>
+<rect class="node k-ui" x="380" y="420" width="240" height="48" rx="24"/>
+<rect class="node k-plain dashed" x="40" y="300" width="260" height="84" rx="10"/>
+<rect class="node k-err" x="40" y="398" width="260" height="84" rx="10"/>
+<text class="t-title" x="500" y="45.5" text-anchor="middle">Icon opened again</text>
+<text class="t-dec" x="500" y="116.5" text-anchor="middle">App code changed</text>
+<text class="t-dec" x="500" y="131.5" text-anchor="middle">on disk?</text>
+<text class="t-title" x="870" y="116.5" text-anchor="middle">Restart the app</text>
+<text class="t-sub" x="870" y="132.5" text-anchor="middle">the new copy takes over</text>
+<text class="t-dec" x="500" y="226.5" text-anchor="middle">Agent answering</text>
+<text class="t-dec" x="500" y="241.5" text-anchor="middle">/health?</text>
+<text class="t-title" x="160" y="226.5" text-anchor="middle">Start the agent</text>
+<text class="t-sub" x="160" y="242.5" text-anchor="middle">loading page shows progress</text>
+<text class="t-dec" x="500" y="336.5" text-anchor="middle">Agent older than</text>
+<text class="t-dec" x="500" y="351.5" text-anchor="middle">the code on disk?</text>
+<text class="t-title" x="870" y="336.5" text-anchor="middle">Restart the agent</text>
+<text class="t-sub" x="870" y="352.5" text-anchor="middle">only if no task is running</text>
+<text class="t-title" x="500" y="440.5" text-anchor="middle">Show window · new chat</text>
+<text class="t-sub" x="500" y="456.5" text-anchor="middle">a running task keeps its page</text>
+<text class="t-title" x="170" y="324.5" text-anchor="middle">Every 15 seconds</text>
+<text class="t-sub" x="170" y="340.5" text-anchor="middle">check /health · status only</text>
+<text class="t-sub" x="170" y="354.5" text-anchor="middle">never starts or restarts</text>
+<text class="t-sub" x="170" y="368.5" text-anchor="middle">the agent on its own</text>
+<text class="t-title" x="170" y="422.5" text-anchor="middle">Window X · tray Quit</text>
+<text class="t-sub" x="170" y="438.5" text-anchor="middle">stops the agent, its Chrome</text>
+<text class="t-sub" x="170" y="452.5" text-anchor="middle">and the wake word</text>
+<text class="t-sub" x="170" y="466.5" text-anchor="middle">“Hide window” keeps listening</text>
+<text class="elabel" x="685" y="112" text-anchor="middle">yes</text>
+<text class="elabel" x="508" y="178" text-anchor="start">no</text>
+<text class="elabel" x="335" y="222" text-anchor="middle">no</text>
+<text class="elabel" x="508" y="288" text-anchor="start">yes</text>
+<text class="elabel" x="690" y="332" text-anchor="middle">yes</text>
+<text class="elabel" x="508" y="400" text-anchor="start">no</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Closing the window stops everything:</b> the agent, its Chrome window and the wake word. To keep listening without a window, choose <b>Hide window, keep listening</b> in the tray menu; <b>Quit</b> there stops it all.</li>
+        <li>The app <b>never starts or restarts the agent on its own</b>. A crash is shown in the window and the tray; an agent stopped on purpose (Ctrl+C in <code>start_agent.ps1</code>) closes the app too, but an agent that never answered counts as a failed start, and an agent answering that this app did not start is attached to, never stopped. If the app itself is killed, the backend notices within seconds and shuts down.</li>
+        <li><code>agent_desktop.pyw --quit</code> stops everything from a script. <b>Start with Windows</b> in the tray menu starts it hidden at log-in, with a notification that it is listening.</li>
+        <li>The window is Edge WebView2, already part of Windows 11, so there is no browser engine to bundle.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="email">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 27 · app/tools/mail.py · scripts/setup_email.py</p>
+      <h3>Reading and sending your email</h3>
+      <p class="claim">The agent works in your own mailbox over IMAP and SMTP — not through the Gmail website — so every recipient, header and attachment is exact, and checked before anything leaves the computer.</p>
+    </div>
+    <figure class="card">
+      <div class="scroll"><svg class="dg" viewBox="0 0 1000 300" role="img" aria-label="Sending an email: every address, file and template gap is checked, you approve the whole email when a window is open, and the bcc line never travels with the message." style="--minw:720px"><defs><marker id="email-ah-base" class="mk base" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="email-ah-err" class="mk err" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker><marker id="email-ah-ok" class="mk ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<polyline class="edge" points="220,102 250,102" marker-end="url(#email-ah-base)"/>
+<polyline class="edge" points="480,102 510,102" marker-end="url(#email-ah-base)"/>
+<polyline class="edge" points="710,102 740,102" marker-end="url(#email-ah-base)"/>
+<polyline class="edge err" points="365,144 365,200" marker-end="url(#email-ah-err)"/>
+<polyline class="edge err" points="610,144 610,224 490,224" marker-end="url(#email-ah-err)"/>
+<polyline class="edge ok" points="860,144 860,200" marker-end="url(#email-ah-ok)"/>
+<rect class="node k-engine" x="20" y="60" width="200" height="84" rx="10"/>
+<rect class="node k-local" x="250" y="60" width="230" height="84" rx="10"/>
+<rect class="node k-warn" x="510" y="60" width="200" height="84" rx="10"/>
+<rect class="node k-ext" x="740" y="60" width="240" height="84" rx="10"/>
+<rect class="node k-err" x="250" y="200" width="240" height="48" rx="10"/>
+<rect class="node k-ok" x="740" y="200" width="240" height="48" rx="10"/>
+<text class="t-title" x="120" y="84.5" text-anchor="middle">send_email(…)</text>
+<text class="t-sub" x="120" y="100.5" text-anchor="middle">to · cc · bcc · subject</text>
+<text class="t-sub" x="120" y="114.5" text-anchor="middle">body · attachments</text>
+<text class="t-sub" x="120" y="128.5" text-anchor="middle">or a saved draft</text>
+<text class="t-title" x="365" y="77.5" text-anchor="middle">Checked first</text>
+<text class="t-sub" x="365" y="93.5" text-anchor="middle">mailbox set up</text>
+<text class="t-sub" x="365" y="107.5" text-anchor="middle">addresses real, as written</text>
+<text class="t-sub" x="365" y="121.5" text-anchor="middle">files found · ≤ 25 MB</text>
+<text class="t-sub" x="365" y="135.5" text-anchor="middle">no “[Your Name]” gaps</text>
+<text class="t-title" x="610" y="84.5" text-anchor="middle">Your approval</text>
+<text class="t-sub" x="610" y="100.5" text-anchor="middle">the whole email is shown</text>
+<text class="t-sub" x="610" y="114.5" text-anchor="middle">when a window is open</text>
+<text class="t-sub" x="610" y="128.5" text-anchor="middle">wake word: goes ahead</text>
+<text class="t-title" x="860" y="84.5" text-anchor="middle">SMTP over TLS</text>
+<text class="t-sub" x="860" y="100.5" text-anchor="middle">bcc is a recipient only,</text>
+<text class="t-sub" x="860" y="114.5" text-anchor="middle">never a line in the email</text>
+<text class="t-sub" x="860" y="128.5" text-anchor="middle">the same email never twice</text>
+<text class="t-title" x="370" y="220.5" text-anchor="middle">Not sent</text>
+<text class="t-sub" x="370" y="236.5" text-anchor="middle">the answer names what failed</text>
+<text class="t-title" x="860" y="220.5" text-anchor="middle">Email sent</text>
+<text class="t-sub" x="860" y="236.5" text-anchor="middle">a copy in Sent</text>
+<text class="elabel" x="373" y="176" text-anchor="start">a check fails</text>
+<text class="elabel" x="618" y="170" text-anchor="start">you say no</text>
+<text class="t-sub" x="20" y="275" text-anchor="start">Reading (search_emails, read_email) opens the mailbox read-only: nothing is marked as read, and an email&#x27;s text is data, never instructions.</text>
+</svg></div>
+      <figcaption><ul>
+        <li><b>Set up once:</b> <code>setup_email.bat</code> asks for your address and an app password (Gmail refuses the normal password here), checks that reading and sending sign in without sending anything, and saves them to <code>.env</code>. The servers follow from the address; a college Google Workspace address (<code>@bmu.edu.in</code>) uses Gmail's.</li>
+        <li><b>Reading:</b> <code>search_emails</code> lists a folder newest first with an id each (unread ● and attachments 📎 marked), <code>read_email</code> opens one in full and can save its attachments to Downloads. Folders are opened read-only, so nothing is marked as read.</li>
+        <li><b>A name, not an address:</b> <code>find_email_address</code> looks the person up among the people you have written to or heard from. Several matches, or none, and the agent asks you — it never guesses an address.</li>
+        <li><b>Draft or send:</b> "draft an email…" saves it in Drafts and sends nothing; "send…" sends once, and <code>send_email(draft_id=…)</code> sends a draft exactly as saved.</li>
+        <li><b>Measured on a live run (18 Sep 2026):</b> "check my mail and tell me what Rakesh sent me", "send an email to rakesh kumar … cc … bcc … attach report.pdf" and "draft an email to Ankit … don't send it" each did exactly that, with the bcc address delivered but absent from the message.</li>
+      </ul></figcaption>
+    </figure>
+  </section>
+
+  <section class="fig" id="safety">
+    <div class="fig-head">
+      <p class="eyebrow">Fig. 26 · verifier/engine.py · tools/ · agent/toolkit.py</p>
+      <h3>Safety guards</h3>
+      <p class="claim">What the agent refuses or asks about, wherever the task came from.</p>
+    </div>
+    <figure class="card">
+      <dl class="guards">
+        <div><dt>Payments and checkout</dt><dd>Clicks or Enter on payment words or payment pages need your “Yes”; with no window to ask (wake word, REST) they are refused.</dd></div>
+        <div><dt>Sending files</dt><dd>Credential files are refused; other uploads need your approval when a window is open.</dd></div>
+        <div><dt>Double messages</dt><dd>A message already sent in a window is never typed again unless you asked for “twice” or “again”.</dd></div>
+        <div><dt>Automatic retries</dt><dd>No retry once anything that changes the world has succeeded: typing, clicking, sending, writing, commands.</dd></div>
+        <div><dt>Wrong window</dt><dd>Keys and clicks go only to a window confirmed to be in front; coordinates are never guessed.</dd></div>
+        <div><dt>Deleting</dt><dd>Always to the Recycle Bin; system folders, your home and your top-level folders are refused.</dd></div>
+        <div><dt>Dangerous commands</dt><dd>Disk formatting, wiping, boot changes, shutdown and restart, and encoded commands are blocked.</dd></div>
+        <div><dt>Scope</dt><dd>A task that asks for Chrome, a website or a URL, and names no file on this computer, gets browser tools only, whichever window it came from.</dd></div>
+        <div><dt>Time</dt><dd>300 s per tool call, 180 s per task, one task at a time.</dd></div>
+        <div><dt>Remote stop</dt><dd><code>/app/shutdown</code> accepts requests from this computer only.</dd></div>
+        <div><dt>Your Chrome</dt><dd>The agent's Chrome has its own profile. Your profiles are never launched, copied or read, so they stay signed in.</dd></div>
+        <div><dt>Sending email</dt><dd>Only real addresses, checked files (no credential files, at most 25 MB) and no template gaps; you approve the whole email when a window is open; the same email is never sent twice; bcc never appears in the sent message.</dd></div>
+        <div><dt>Instructions inside an email</dt><dd>An email's text is returned as information; the agent is told never to follow instructions written in it, and only you can run the email setup.</dd></div>
+        <div><dt>Stopping</dt><dd>The window's X, tray Quit or Ctrl+C stops the agent, its Chrome and the wake word; nothing restarts on its own, and a recording without “done” is never run.</dd></div>
+      </dl>
+    </figure>
+  </section>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <p>Drawn from the code in <code>backend/app</code>, <code>desktop</code> and <code>extension</code>. The full written explanation, with every setting and the fixes from the September 2026 reviews, is in <code>working.md</code>.</p>
+</footer>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+# Core
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=14.0
+playwright>=1.49.0
+
+# Agent engine: LangGraph state machine + native tool calling through LiteLLM
+langgraph>=1.0.0
+langchain-core>=0.3.0
+litellm>=1.70.0
+
+# Level 3 learning: local semantic memory
+# (ChromaDB + all-MiniLM-L6-v2 embeddings run on CPU through onnxruntime)
+chromadb>=1.0.0
+onnxruntime>=1.17.0
+
+# Config
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.0
+
+# Database
+sqlalchemy[asyncio]>=2.0.0
+aiosqlite>=0.20.0
+
+# Utilities
+structlog>=24.4.0
+httpx>=0.28.0
+psutil>=5.9.0
+pillow>=10.0.0          # desktop app screenshots (see_window, app-ready detection)
+
+# Reading documents the user asks about (read_file: pdf, docx, pptx, xlsx)
+pypdf>=5.0.0
+python-docx>=1.1.0
+python-pptx>=1.0.0
+openpyxl>=3.1.0
+
+# Voice / Wake Word
+SpeechRecognition>=3.10.0
+PyAudio>=0.2.14
+vosk>=0.3.45            # offline wake-word engine (default; scripts/install_vosk_model.py)
+
+# Desktop app (desktop/agent_desktop.pyw): native window on Windows' built-in
+# Edge WebView2 + system tray icon
+pywebview>=5.0
+pystray>=0.19
+
+# Dev
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+pytest-cov>=6.0.0
+ruff>=0.8.0

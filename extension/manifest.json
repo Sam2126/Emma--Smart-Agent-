@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Self-Improving Browser Agent",
+  "version": "0.1.0",
+  "description": "AI-powered browser automation agent that gets smarter over time",
+
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "storage"
+  ],
+
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "Open Agent Panel",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
