@@ -159,7 +159,9 @@ class Settings(BaseSettings):
     tts_enabled: bool = True
     tts_order: str = "groq,gemini,windows"
     tts_groq_model: str = "canopylabs/orpheus-v1-english"
-    tts_groq_voice: str = "tara"
+    # autumn, diana, hannah, austin, daniel or troy - the model rejects any
+    # other name (the older Orpheus voices, "tara" among them, are not offered).
+    tts_groq_voice: str = "autumn"
     tts_gemini_model: str = "gemini-3.1-flash-tts-preview"
     tts_gemini_voice: str = "Kore"
     # The offline Windows voice: also the ONLY voice used for private text

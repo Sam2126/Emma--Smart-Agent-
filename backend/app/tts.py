@@ -317,42 +317,69 @@ class _Voices:
 
     # -- 1. Groq Orpheus ---------------------------------------------------
     def groq(self, text: str, voice: str) -> bytes | None:
+        """Speak through Groq, trying each key until one is allowed to.
+
+        The voice model's terms are accepted PER ACCOUNT, and this project
+        holds several keys. Measured here: one of four keys could use the
+        model and the other three answered "requires terms acceptance", so
+        giving up on the first refusal meant never speaking with it at all.
+        """
         import httpx
 
         from app.utils.key_pool import get_key_pool
 
         settings = get_settings()
-        try:
-            key = get_key_pool().acquire()
-        except Exception as e:
-            self.cool(Tier.GROQ, reason=f"no key: {e}")
-            return None
-        try:
-            response = httpx.post(
-                GROQ_SPEECH_URL,
-                headers={"Authorization": f"Bearer {key}"},
-                json={
-                    "model": settings.tts_groq_model,
-                    "input": text,
-                    "voice": voice or settings.tts_groq_voice,
-                    "response_format": "wav",
-                },
-                timeout=settings.tts_timeout_seconds,
-            )
-        except Exception as e:
-            self.cool(Tier.GROQ, reason=str(e))
-            return None
+        pool = get_key_pool()
+        attempts = max(1, getattr(pool, "size", 1))
+        needs_terms = 0
+        last_detail = ""
 
-        if response.status_code == 200 and _looks_like_wav(response.content):
-            return response.content
-        detail = response.text[:200]
-        # "requires terms acceptance" is not a fault to retry every line: the
-        # user has to click once in the Groq console. Sit out for longer.
-        if "terms acceptance" in detail:
-            self.cool(Tier.GROQ, seconds=1800, reason="model terms not accepted yet")
-            logger.warning("tts_groq_needs_terms_acceptance", url="https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english")
+        for _ in range(attempts):
+            try:
+                key = pool.acquire()
+            except Exception as e:
+                self.cool(Tier.GROQ, reason=f"no key: {e}")
+                return None
+            try:
+                response = httpx.post(
+                    GROQ_SPEECH_URL,
+                    headers={"Authorization": f"Bearer {key}"},
+                    json={
+                        "model": settings.tts_groq_model,
+                        "input": text,
+                        "voice": voice or settings.tts_groq_voice,
+                        "response_format": "wav",
+                    },
+                    timeout=settings.tts_timeout_seconds,
+                )
+            except Exception as e:
+                last_detail = str(e)[:200]
+                continue
+
+            if response.status_code == 200 and _looks_like_wav(response.content):
+                return response.content
+            last_detail = response.text[:200]
+            if "terms acceptance" in last_detail:
+                needs_terms += 1
+                continue          # another key's account may have accepted them
+            if "voice must be one of" in last_detail:
+                # A wrong voice name is a setting to fix, not an outage.
+                self.cool(Tier.GROQ, seconds=600, reason=last_detail)
+                logger.warning("tts_groq_voice_not_valid", voice=voice or settings.tts_groq_voice,
+                               detail=last_detail[:160])
+                return None
+            if response.status_code == 429:
+                continue          # this key is busy; the next one may not be
+
+        if needs_terms >= attempts:
+            self.cool(Tier.GROQ, seconds=1800, reason="model terms not accepted on any key")
+            logger.warning(
+                "tts_groq_needs_terms_acceptance",
+                keys_refused=needs_terms,
+                url="https://console.groq.com/playground?model=canopylabs%2Forpheus-v1-english",
+            )
         else:
-            self.cool(Tier.GROQ, reason=f"HTTP {response.status_code}: {detail}")
+            self.cool(Tier.GROQ, reason=last_detail or "every key refused")
         return None
 
     # -- 2. Gemini ----------------------------------------------------------
@@ -427,6 +454,25 @@ class _Voices:
             logger.warning("tts_windows_voice_failed", error=str(e)[:160])
             return None
 
+    def order_for(self, text: str = "") -> list[str]:
+        """The tiers to try, in order, for this text."""
+        settings = get_settings()
+        order = [t.strip() for t in (settings.tts_order or "").split(",") if t.strip()]
+        order = order or [Tier.GROQ, Tier.GEMINI, Tier.WINDOWS]
+        if text and is_indic(text):
+            order = [t for t in order if t != Tier.WINDOWS] + [Tier.WINDOWS]
+            if Tier.GEMINI in order:
+                order.remove(Tier.GEMINI)
+                order.insert(0, Tier.GEMINI)
+        return order
+
+    def preferred_tier(self, text: str = "") -> str:
+        """The tier that would speak this text right now, or '' when none can."""
+        for tier in self.order_for(text):
+            if self.available(tier):
+                return tier
+        return ""
+
     # -- the chain ----------------------------------------------------------
     def synthesize(self, text: str, sensitive: bool) -> tuple[bytes | None, str]:
         settings = get_settings()
@@ -436,17 +482,9 @@ class _Voices:
             # to a voice service is worse.
             return self.windows(text, settings.tts_windows_voice), Tier.WINDOWS
 
-        order = [t.strip() for t in (settings.tts_order or "").split(",") if t.strip()]
-        order = order or [Tier.GROQ, Tier.GEMINI, Tier.WINDOWS]
-        if is_indic(text):
-            # Zira, Hazel and David are English voices: given Devanagari they
-            # produce noise. Gemini speaks it properly, so the local voice
-            # becomes the last resort rather than an equal choice.
-            order = [t for t in order if t != Tier.WINDOWS] + [Tier.WINDOWS]
-            if Tier.GEMINI in order:
-                order.remove(Tier.GEMINI)
-                order.insert(0, Tier.GEMINI)
-        for tier in order:
+        # Zira, Hazel and David are English voices: given Devanagari they
+        # produce noise, so order_for moves them last for Indic text.
+        for tier in self.order_for(text):
             if not self.available(tier):
                 continue
             started = time.monotonic()
@@ -613,9 +651,21 @@ class Speaker:
 
     # -- cache --------------------------------------------------------------
     def _key(self, text: str, sensitive: bool) -> Path:
+        """Where this line's audio is cached.
+
+        The tier that would speak it is part of the name. Without that, lines
+        cached while the Groq voice was unavailable would keep playing in the
+        fallback voice for ever, and Emma would answer in two different voices
+        depending on which sentences happened to be cached.
+        """
         settings = get_settings()
-        voice = settings.tts_windows_voice if sensitive else settings.tts_groq_voice
-        digest = hashlib.sha256(f"{voice}|{settings.tts_order}|{text}".encode()).hexdigest()[:32]
+        tier = Tier.WINDOWS if sensitive else (self._voices.preferred_tier() or "none")
+        voice = {
+            Tier.WINDOWS: settings.tts_windows_voice,
+            Tier.GROQ: settings.tts_groq_voice,
+            Tier.GEMINI: settings.tts_gemini_voice,
+        }.get(tier, "")
+        digest = hashlib.sha256(f"{tier}|{voice}|{text}".encode()).hexdigest()[:32]
         return CACHE_DIR / f"{digest}.wav"
 
     def _cached(self, text: str, sensitive: bool) -> bytes | None:

@@ -322,3 +322,107 @@ def test_the_second_time_a_line_is_said_it_comes_from_the_cache(speaker, monkeyp
     assert first_tier == "test" and second_tier == "cache"
     assert first_audio == second_audio
     assert len(calls) == 1, "a repeated line must not be synthesized twice"
+
+
+# =============================================================================
+# The voice model's terms are accepted per account
+# =============================================================================
+# Measured on this installation: of four Groq keys, ONE account had accepted
+# the voice model's terms and three had not. Giving up on the first refusal
+# meant the good key was never reached and Emma never used that voice at all.
+
+class _Reply:
+    def __init__(self, status, text="", content=b""):
+        self.status_code = status
+        self.text = text
+        self.content = content
+
+
+def _wav() -> bytes:
+    return tts._wav_from_pcm(b"\x00\x01" * 100)
+
+
+def test_the_key_whose_account_accepted_the_terms_is_found(monkeypatch):
+    keys = ["key-no", "key-no-2", "key-yes", "key-no-3"]
+    used = []
+
+    class _Pool:
+        size = len(keys)
+
+        def acquire(self):
+            key = keys[len(used) % len(keys)]
+            used.append(key)
+            return key
+
+    monkeypatch.setattr("app.utils.key_pool.get_key_pool", lambda: _Pool())
+
+    def post(url, headers=None, json=None, timeout=None):
+        key = (headers or {})["Authorization"].split()[-1]
+        if key == "key-yes":
+            return _Reply(200, content=_wav())
+        return _Reply(400, text='{"error":{"message":"requires terms acceptance"}}')
+
+    monkeypatch.setattr("httpx.post", post)
+
+    voices = tts._Voices()
+    audio = voices.groq("hello", "autumn")
+    assert audio is not None, "the key that may use the voice must be tried"
+    assert "key-yes" in used
+
+
+def test_the_voice_is_not_disabled_when_every_account_refuses(monkeypatch):
+    class _Pool:
+        size = 2
+
+        def acquire(self):
+            return "key"
+
+    monkeypatch.setattr("app.utils.key_pool.get_key_pool", lambda: _Pool())
+    monkeypatch.setattr(
+        "httpx.post",
+        lambda *a, **k: _Reply(400, text='{"error":{"message":"requires terms acceptance"}}'),
+    )
+    voices = tts._Voices()
+    assert voices.groq("hello", "autumn") is None
+    # It sits out rather than asking again for every sentence, since only a
+    # click in the Groq console can change the answer.
+    assert voices.available(tts.Tier.GROQ) is False
+
+
+def test_a_wrong_voice_name_is_reported_as_a_setting_not_an_outage(monkeypatch):
+    class _Pool:
+        size = 4
+
+        def acquire(self):
+            return "key"
+
+    calls = []
+    monkeypatch.setattr("app.utils.key_pool.get_key_pool", lambda: _Pool())
+
+    def post(*a, **k):
+        calls.append(1)
+        return _Reply(400, text='{"error":{"message":"voice must be one of the following voices: [autumn diana]"}}')
+
+    monkeypatch.setattr("httpx.post", post)
+    voices = tts._Voices()
+    assert voices.groq("hello", "tara") is None
+    assert len(calls) == 1, "a wrong name is the same on every key; trying them all is pointless"
+
+
+def test_audio_cached_in_one_voice_is_not_replayed_in_another(monkeypatch, tmp_path):
+    # While the Groq voice was unavailable, lines were cached in Gemini's
+    # voice. Once it becomes available those must not keep playing, or Emma
+    # answers in two voices depending on which sentences were cached.
+    monkeypatch.setattr(tts, "CACHE_DIR", tmp_path)
+    speaker = tts.Speaker()
+    monkeypatch.setattr(get_settings(), "tts_order", "gemini,windows")
+    while_gemini = speaker._key("Done.", sensitive=False)
+    monkeypatch.setattr(get_settings(), "tts_order", "groq,gemini,windows")
+    with_groq = speaker._key("Done.", sensitive=False)
+    assert while_gemini != with_groq
+
+
+def test_private_text_is_cached_under_the_offline_voice(monkeypatch, tmp_path):
+    monkeypatch.setattr(tts, "CACHE_DIR", tmp_path)
+    speaker = tts.Speaker()
+    assert speaker._key("code 4021", sensitive=True) != speaker._key("code 4021", sensitive=False)
