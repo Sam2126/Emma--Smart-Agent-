@@ -404,8 +404,10 @@ class WakeWordListener:
         self._state = ListenerState.IDLE
         self._stop_event = threading.Event()
         # Set by the "Talk to Emma" button: start recording at once, without
-        # waiting to hear the wake word.
+        # waiting to hear the wake word, and answer what is said rather than
+        # carrying it out.
         self._talk_requested = threading.Event()
+        self._next_is_conversation = False
         self._thread: threading.Thread | None = None
 
         # Pre-build variant sets for fuzzy matching
@@ -416,6 +418,17 @@ class WakeWordListener:
         # recording that sits on the edge between the two). Only a phrase that
         # is exactly "don't" counts, never "don't" inside a sentence.
         self._stop_whole_phrase_only = {"don't"} if self.stop_word == "done" else set()
+        # "done" lands on "none" for some speakers. Both are decoys in the Vosk
+        # grammar, which is what keeps look-alikes off the real word, so a
+        # genuine "done" sometimes ends up there. These are NOT treated as the
+        # stop word in general - the recordings in tests/fixtures/voice of
+        # people actually saying "none" must not trigger anything - only while
+        # a recording is in progress and an instruction has already been
+        # spoken, which is the only moment the user could mean "done".
+        self._weak_stop_words = (
+            {"none", "non", "nun", "noon", "known", "dawn", "gone", "down"}
+            if self.stop_word == "done" else set()
+        )
         # Optional offline keyword engine (wake_word_engine=vosk)
         self._vosk_model = None
         self._vosk_grammar = ""
@@ -560,6 +573,7 @@ class WakeWordListener:
         # The button was pressed: skip the wake word entirely and record.
         if self._talk_requested.is_set():
             self._talk_requested.clear()
+            self._next_is_conversation = True
             _stop_voice()                       # she stops talking to listen
             _beep_start()
             _print_status("Listening - speak now, say \"done\" when finished", "magenta")
@@ -686,6 +700,20 @@ class WakeWordListener:
     # ------------------------------------------------------------------
     # Stop word matching — fuzzy
     # ------------------------------------------------------------------
+
+    def _is_weak_stop(self, text: str, said_so_far: list[str]) -> bool:
+        """True for a word that only means "done" in the middle of a recording.
+
+        Vosk hears some speakers' "done" as "none". The word is a real one, so
+        it cannot simply be added to the stop words - it would end a recording
+        the moment someone said "none of them". Here it counts only when an
+        instruction has already been spoken and this chunk is that word alone,
+        which is exactly where a stop cue belongs.
+        """
+        if not said_so_far:
+            return False
+        spoken = text.lower().strip(" .,!?'\"")
+        return spoken in self._weak_stop_words
 
     def _matches_stop_word(self, text: str) -> bool:
         """
@@ -845,7 +873,7 @@ class WakeWordListener:
                 logger.info("wake_listener_chunk", text=quick_text, state="RECORDING")
                 _print_status(f"[recording] Heard: \"{quick_text}\"", "magenta")
 
-                if self._matches_stop_word(quick_text):
+                if self._matches_stop_word(quick_text) or self._is_weak_stop(quick_text, fallback_text_parts):
                     logger.info("stop_word_detected", text=quick_text)
                     _print_status(f"✅ STOP WORD DETECTED! Heard: \"{quick_text}\"", "green")
                     _beep_stop()
@@ -1063,10 +1091,13 @@ class WakeWordListener:
         runner = AgentRunner(status_callback=_on_status)
 
         try:
+            conversation = self._next_is_conversation
+            self._next_is_conversation = False
             result = await runner.run_task(
                 instruction=instruction,
                 task_id=task_id,
                 scope=scope,
+                conversation=conversation,
             )
             success = result.get("success", False)
             summary = result.get("summary", "")

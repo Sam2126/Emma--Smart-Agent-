@@ -113,6 +113,26 @@ public class OaskUI {
     [DllImport("user32.dll")] public static extern void mouse_event(int f, int dx, int dy, int d, int e);
     [DllImport("user32.dll")] public static extern short VkKeyScan(char c);
     [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr h, int attr, out int val, int size);
+    [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
+    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
+
+    // Which process owns whatever is drawn at this screen position. The name
+    // of the window is not enough to keep the agent out of the user's own
+    // Chrome: a click with no window named is an ABSOLUTE screen click, and
+    // Chrome may simply be what is in front of those coordinates.
+    public static string ProcessAt(int x, int y) {
+        try {
+            POINT p; p.X = x; p.Y = y;
+            IntPtr h = WindowFromPoint(p);
+            if (h == IntPtr.Zero) return "";
+            IntPtr root = GetAncestor(h, 2);   // GA_ROOT
+            if (root != IntPtr.Zero) h = root;
+            uint pid = 0; GetWindowThreadProcessId(h, out pid);
+            if (pid == 0) return "";
+            return System.Diagnostics.Process.GetProcessById((int)pid).ProcessName;
+        } catch { return ""; }
+    }
 
     // A Store app that Windows has SUSPENDED stays "visible" to user32 while
     // DWM reports it cloaked, and a suspended app has no live UI tree and is
@@ -965,6 +985,12 @@ class ClickWindowTool(BaseTool):
             script = _PS_UI_HELPER + f"""
 $hint = '{safe}'
 $originL = 0; $originT = 0; $label = 'screen'
+if ($hint -eq '') {{
+    # An absolute screen click, so nothing named Chrome was refused earlier:
+    # check what is actually drawn at that point instead.
+    $owner = [OaskUI]::ProcessAt({int(x)}, {int(y)})
+    if ($owner -match 'chrome') {{ Write-Output ('CHROMEPOINT|' + $owner); exit 0 }}
+}}
 if ($hint -ne '') {{
     $w = [OaskUI]::WaitFor($hint, 15000)
     if (-not $w) {{ Write-Output 'NOTFOUND'; exit 0 }}
@@ -979,6 +1005,13 @@ $ax = $originL + {int(x)}; $ay = $originT + {int(y)}
 Write-Output ("CLICKED|" + $ax + "|" + $ay + "|" + $label)
 """
             out = _ps(script)
+            if out.startswith("CHROMEPOINT|"):
+                owner = out.split("|", 1)[1].strip()
+                logger.info("desktop_click_refused_chrome_at_point", x=x, y=y, process=owner[:40])
+                return (
+                    f"Refused: ({x}, {y}) is inside a Chrome window ({owner}), which may be one of the "
+                    f"user's own. {CHROME_IS_BROWSER_TOOLS}"
+                )
             if out.startswith("NOTFOUND"):
                 return (
                     f"No visible window matching '{window}' (waited 15s) — nothing was clicked. "

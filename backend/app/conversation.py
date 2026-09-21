@@ -152,6 +152,13 @@ async def route(instruction: str, conversation: bool = False) -> str:
     wording could go either way, someone in the middle of a conversation
     expects an answer rather than a browser window.
     """
+    # The talking microphone is for talking. The user asked for this plainly
+    # after testing it: general talk through that button was being planned as
+    # a job instead of being answered. The task microphone, the typed box and
+    # the wake word all still run tasks.
+    if conversation:
+        return QUESTION
+
     decided = classify(instruction)
     if decided != UNSURE:
         return decided

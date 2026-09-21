@@ -235,10 +235,13 @@ async def test_an_ambiguous_sentence_is_answered_in_a_conversation(monkeypatch):
     assert await conversation.route(ambiguous, conversation=True) == conversation.QUESTION
 
 
-async def test_a_plain_instruction_is_still_carried_out_in_a_conversation():
+async def test_the_talking_microphone_does_not_run_tasks():
+    # This replaces an earlier test that asserted the opposite. The user tried
+    # the button with general talk, found it planning jobs instead of
+    # answering, and asked for it to be for talking only.
     import app.conversation as conversation
 
-    assert await conversation.route("open myntra and search shoes", conversation=True) == conversation.TASK
+    assert await conversation.route("open myntra and search shoes", conversation=True) == conversation.QUESTION
 
 
 # =============================================================================
@@ -255,3 +258,131 @@ def test_the_window_offers_a_task_microphone_and_a_talking_one():
     assert "conversation: conversation" in html
     assert "beginRecording({ conversation: true })" in html
     assert "beginRecording({ conversation: false })" in html
+
+
+# =============================================================================
+# The stripper must not eat the start of a real instruction
+# =============================================================================
+# Found after a report that listening got worse: any one or two letter word at
+# the front was dropped as a piece of a garbled wake word, so "go to gmail"
+# arrived as "to gmail".
+
+@pytest.mark.parametrize("said", [
+    "go to gmail and check my mail",
+    "do my homework file",
+    "my downloads open it",
+    "is it raining today",
+    "am i late for the meeting",
+])
+def test_an_instruction_keeps_its_first_word(said):
+    assert clean_instruction(said) == said
+
+
+@pytest.mark.parametrize("heard, meant", [
+    ("M R open gmail", "open gmail"),
+    ("Emma open whatsapp", "open whatsapp"),
+    ("em open gmail", "open gmail"),
+    # "I am" is how a clipped "Emma" often comes back.
+    ("I am open chrome search myntra done", "open chrome search myntra"),
+])
+def test_the_wake_word_is_still_removed(heard, meant):
+    assert clean_instruction(heard) == meant
+
+
+def test_a_single_word_instruction_survives():
+    # Stripping must never leave nothing behind.
+    assert clean_instruction("screenshot") == "screenshot"
+
+
+# =============================================================================
+# "done" heard as "none"
+# =============================================================================
+
+@pytest.mark.parametrize("heard", ["done", "don't", "don", "i am done"])
+def test_the_stop_word_and_its_plain_mishearings_stop_the_recording(heard):
+    from app.wake_listener import WakeWordListener
+
+    listener = WakeWordListener(wake_word="emma", stop_word="done")
+    assert listener._matches_stop_word(heard) is True
+
+
+@pytest.mark.parametrize("heard", ["none", "non", "nun", "noon", "dawn", "gone"])
+def test_none_ends_a_recording_only_once_something_has_been_said(heard):
+    # Vosk hears some speakers' "done" as "none". It is a real word, so it
+    # cannot be a stop word in general - the repository has recordings of
+    # people genuinely saying it - but after an instruction has been spoken,
+    # a chunk that is only that word can only mean "done".
+    from app.wake_listener import WakeWordListener
+
+    listener = WakeWordListener(wake_word="emma", stop_word="done")
+    assert listener._matches_stop_word(heard) is False, "not a stop word on its own"
+    assert listener._is_weak_stop(heard, said_so_far=[]) is False, "nothing said yet"
+    assert listener._is_weak_stop(heard, said_so_far=["open gmail"]) is True
+
+
+@pytest.mark.parametrize("heard", [
+    "none of them are ready",
+    "open the noon report",
+    "send it to none of the group",
+])
+def test_the_same_word_inside_a_sentence_does_not_stop_it(heard):
+    from app.wake_listener import WakeWordListener
+
+    listener = WakeWordListener(wake_word="emma", stop_word="done")
+    assert listener._matches_stop_word(heard) is False
+    assert listener._is_weak_stop(heard, said_so_far=["open gmail"]) is False
+
+
+# =============================================================================
+# The talking microphone talks
+# =============================================================================
+
+async def test_everything_said_to_the_talking_microphone_is_answered():
+    # The user tested it with general talk and it was planned as a job. That
+    # button is for talking; the task microphone, the typed box and the wake
+    # word still run tasks.
+    import app.conversation as conversation
+
+    for said in ("hello", "what is the weather like", "open myntra and search shoes",
+                 "tell me a joke", "how was your day"):
+        assert await conversation.route(said, conversation=True) == conversation.QUESTION
+
+
+async def test_the_task_microphone_still_runs_tasks():
+    import app.conversation as conversation
+
+    assert await conversation.route("open myntra and search shoes") == conversation.TASK
+    assert await conversation.route("send shrey an email") == conversation.TASK
+
+
+def test_the_talk_button_marks_the_next_thing_said_as_conversation():
+    from app.wake_listener import WakeWordListener
+
+    listener = WakeWordListener(wake_word="emma", stop_word="done")
+    assert listener._next_is_conversation is False
+    listener.request_conversation()
+    listener._talk_requested.clear()
+    listener._next_is_conversation = True      # what _idle_listen does on the button
+    assert listener._next_is_conversation is True
+
+
+# =============================================================================
+# A screen click must never land in the user's own Chrome
+# =============================================================================
+
+def test_a_click_at_a_point_owned_by_chrome_is_refused(monkeypatch):
+    from app.tools.desktop import ClickWindowTool
+
+    monkeypatch.setattr("app.tools.desktop._ps", lambda script, timeout=None: "CHROMEPOINT|chrome")
+    out = ClickWindowTool()._run(x=500, y=400, window="")
+    assert out.startswith("Refused:")
+    assert "browser tools" in out
+
+
+def test_a_click_elsewhere_on_the_screen_still_works(monkeypatch):
+    from app.tools.desktop import ClickWindowTool
+
+    monkeypatch.setattr("app.tools.desktop._ps",
+                        lambda script, timeout=None: "CLICKED|500|400|notepad :: Untitled")
+    out = ClickWindowTool()._run(x=500, y=400, window="")
+    assert "Clicked (500, 400)" in out

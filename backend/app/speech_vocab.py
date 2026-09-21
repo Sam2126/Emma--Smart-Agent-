@@ -58,6 +58,7 @@ _PROTECTED = {
 # How the wake word comes back when it is clipped at the start of a recording.
 WAKE_MISHEARINGS = {
     "emma", "ema", "amma", "imma", "m r", "mr", "m", "amr", "em", "emma emma",
+    "i am", "i'm", "im",
     "hey emma", "hi emma", "ok emma", "okay emma", "hello emma", "ama", "umma",
     "emir", "amar", "ammar", "enma", "elma",
 }
@@ -65,6 +66,7 @@ WAKE_MISHEARINGS = {
 # How the stop word comes back at the end of one.
 STOP_MISHEARINGS = {
     "done", "dawn", "don", "dun", "doon", "down", "ton", "dome", "done done",
+    "none", "non", "nun", "noon", "known", "gone",
     "i'm done", "im done", "that's it", "thats it", "finish", "finished", "stop",
 }
 
@@ -129,20 +131,31 @@ def strip_wake_word(text: str, variants: set[str] | None = None) -> str:
     """
     known = {v.lower() for v in (variants or set())} | WAKE_MISHEARINGS
     words = text.strip().split()
+    dropped = False
     for _ in range(3):
-        if not words:
+        if len(words) < 2:      # never strip the only word left
             break
         first = words[0].strip(".,!?").lower()
         two = " ".join(w.strip(".,!?").lower() for w in words[:2])
         if two in known:
             words = words[2:]
+            dropped = True
             continue
-        if first in known or (len(first) <= 2 and len(words) > 1):
+        if first in known:
+            words = words[1:]
+            dropped = True
+            continue
+        # A stray letter or two, but ONLY once part of the wake word has
+        # already been removed: "M R open gmail" leaves an "r" behind. This
+        # used to run on any short first word, which quietly ate the start of
+        # real instructions - "go to gmail" became "to gmail".
+        if dropped and len(first) <= 2:
             words = words[1:]
             continue
         # A single near-miss of the wake word: "emmah", "emmar", "amma".
-        if len(first) >= 3 and any(_close(first, v) >= 0.75 for v in known if len(v) >= 3):
+        if len(first) >= 4 and any(_close(first, v) >= 0.8 for v in known if len(v) >= 4):
             words = words[1:]
+            dropped = True
             continue
         break
     return " ".join(words)
